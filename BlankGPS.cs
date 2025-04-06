@@ -5,6 +5,8 @@ using Sons.Gameplay.GPS;
 using UnityEngine;
 using System.Reflection;
 using System.Collections.Generic;
+using System.IO; // For file operations
+using System.Text; // For StringBuilder
 using HarmonyLib;
 
 namespace BlankGPS;
@@ -18,8 +20,8 @@ public class BlankGPS : SonsMod
 
     public BlankGPS()
     {
-        // Initialize the static marker list
-        _markersToDisable = new List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)>
+        // Step 1: Define the default marker list
+        var defaultMarkers = new List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)>
         {
             ("CaveAEntranceGPS", "_iconScale", 1.1f, false),
             ("CaveBEntranceGPS", "_iconScale", 1.1f, false),
@@ -35,6 +37,144 @@ public class BlankGPS : SonsMod
             ("GPSLocatorPickup", "Position", new Vector3(-1340.964f, 95.4219f, 1411.981f), true),
             ("GPSLocatorPickup", "Position", new Vector3(-1797.652f, 14.4886f, 577.0323f), true)
         };
+
+        // Step 2: Load the marker list from a JSON file in the mod folder's BlankGPS subfolder
+        string modsFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        string subFolder = Path.Combine(modsFolder, "BlankGPS");
+        string configPath = Path.Combine(subFolder, "BlankGPS.json");
+
+        try
+        {
+            // Create the BlankGPS subfolder if it doesn't exist
+            if (!Directory.Exists(subFolder))
+            {
+                Directory.CreateDirectory(subFolder);
+                RLog.Msg($"Created BlankGPS subfolder at {subFolder}.");
+            }
+
+            if (!File.Exists(configPath))
+            {
+                // Step 3: Manually construct the JSON file if it doesn't exist
+                var sb = new StringBuilder();
+                sb.AppendLine("[");
+                for (int i = 0; i < defaultMarkers.Count; i++)
+                {
+                    var marker = defaultMarkers[i];
+                    sb.AppendLine("  {");
+                    sb.AppendLine($"    \"GameObjectName\": \"{marker.gameObjectName}\",");
+                    sb.AppendLine($"    \"IdentifierProperty\": \"{marker.identifierProperty}\",");
+                    sb.AppendLine($"    \"IsMethod\": {marker.isMethod.ToString().ToLower()}");
+
+                    if (marker.isMethod)
+                    {
+                        var position = (Vector3)marker.identifierValue;
+                        sb.AppendLine($"    \"Position\": [{position.x}, {position.y}, {position.z}]");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"    \"IconScale\": {marker.identifierValue}");
+                    }
+
+                    if (i < defaultMarkers.Count - 1)
+                    {
+                        sb.AppendLine("  },");
+                    }
+                    else
+                    {
+                        sb.AppendLine("  }");
+                    }
+                }
+                sb.AppendLine("]");
+                File.WriteAllText(configPath, sb.ToString());
+                RLog.Msg($"Created configuration file at {configPath}.");
+            }
+
+            // Step 4: Manually parse the JSON file
+            string jsonContent = File.ReadAllText(configPath);
+            jsonContent = jsonContent.Trim();
+            if (!jsonContent.StartsWith("[") || !jsonContent.EndsWith("]"))
+            {
+                throw new System.Exception("Invalid JSON format: Expected a JSON array.");
+            }
+
+            // Remove the outer brackets and split into individual marker entries
+            jsonContent = jsonContent.Substring(1, jsonContent.Length - 2).Trim();
+            var markerEntries = new List<string>();
+            int braceCount = 0;
+            int startIndex = 0;
+            for (int i = 0; i < jsonContent.Length; i++)
+            {
+                if (jsonContent[i] == '{')
+                {
+                    braceCount++;
+                }
+                else if (jsonContent[i] == '}')
+                {
+                    braceCount--;
+                    if (braceCount == 0)
+                    {
+                        markerEntries.Add(jsonContent.Substring(startIndex, i - startIndex + 1).Trim());
+                        startIndex = i + 2; // Skip the comma and whitespace
+                    }
+                }
+            }
+
+            // Parse each marker entry
+            _markersToDisable = new List<(string, string, object, bool)>();
+            foreach (var entry in markerEntries)
+            {
+                var markerDict = new Dictionary<string, string>();
+                var lines = entry.Split(new[] { '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var trimmedLine = line.Trim();
+                    if (trimmedLine.StartsWith("{") || trimmedLine.StartsWith("}"))
+                        continue;
+
+                    var parts = trimmedLine.Split(new[] { ':' }, 2);
+                    if (parts.Length != 2)
+                        continue;
+
+                    var key = parts[0].Trim().Trim('"');
+                    var value = parts[1].Trim().Trim(',').Trim();
+                    if (value.StartsWith("\"") && value.EndsWith("\""))
+                    {
+                        value = value.Substring(1, value.Length - 2);
+                    }
+                    markerDict[key] = value;
+                }
+
+                string gameObjectName = markerDict["GameObjectName"];
+                string identifierProperty = markerDict["IdentifierProperty"];
+                bool isMethod = bool.Parse(markerDict["IsMethod"]);
+                object identifierValue;
+
+                if (isMethod)
+                {
+                    string positionStr = markerDict["Position"].Trim();
+                    positionStr = positionStr.Substring(1, positionStr.Length - 2); // Remove [ and ]
+                    var positionParts = positionStr.Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries);
+                    float x = float.Parse(positionParts[0].Trim());
+                    float y = float.Parse(positionParts[1].Trim());
+                    float z = float.Parse(positionParts[2].Trim());
+                    identifierValue = new Vector3(x, y, z);
+                }
+                else
+                {
+                    identifierValue = float.Parse(markerDict["IconScale"]);
+                }
+
+                _markersToDisable.Add((gameObjectName, identifierProperty, identifierValue, isMethod));
+            }
+            RLog.Msg($"Loaded marker list from {configPath} with {_markersToDisable.Count} markers.");
+        }
+        catch (System.Exception e)
+        {
+            // Step 5: Fall back to the hardcoded list if loading or writing fails
+            RLog.Error($"Failed to load or create configuration file at {configPath}: {e.Message}. Using hardcoded marker list.");
+            _markersToDisable = defaultMarkers;
+        }
+
         _processedMarkers = new List<string>(); // Initialize the list to track processed markers
     }
 
