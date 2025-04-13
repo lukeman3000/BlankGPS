@@ -23,12 +23,25 @@ public class BlankGPS : SonsMod
     {
         RLog.Msg("BlankGPS mod loaded successfully");
 
-        // Step 2: Initialize the marker list with a single marker for testing
-        // We’ll start with just CaveAEntranceGPS to keep our initial tests simple
-        // The tuple contains: name ("CaveAEntranceGPS"), property to check ("_iconScale"), expected value (1.1f), and whether it’s a method (false)
+        // Step 2: Initialize the marker list with all target markers
+        // This includes all cave entrances and specific GPSLocatorPickup markers
+        // Each tuple contains: name (e.g., "CaveAEntranceGPS"), property to check (e.g., "_iconScale" or "Position"),
+        // expected value (e.g., 1.1f or a Vector3), and whether it’s a method (true for "Position", false for "_iconScale")
         _defaultMarkers = new List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)>
         {
-            ("CaveAEntranceGPS", "_iconScale", 1.1f, false)
+            ("CaveAEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveBEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveCEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveDAEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveDBEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveFEntranceGPS", "_iconScale", 1.1f, false),
+            ("CaveGAEntranceGPS", "_iconScale", 1.1f, false),
+            ("SnowCaveAEntranceGPS", "_iconScale", 1.1f, false),
+            ("SnowCaveBEntranceGPS", "_iconScale", 1.1f, false),
+            ("SnowCaveCEntranceGPS", "_iconScale", 1.1f, false),
+            ("GPSLocatorPickup", "Position", new Vector3(-626.3061f, 145.3385f, 386.1634f), true),
+            ("GPSLocatorPickup", "Position", new Vector3(-1340.964f, 95.4219f, 1411.981f), true),
+            ("GPSLocatorPickup", "Position", new Vector3(-1797.652f, 14.4886f, 577.0323f), true)
         };
 
         // Step 3: Log the number of markers to confirm the list is initialized
@@ -86,52 +99,68 @@ public class GPSLocatorAwakePatch
             return;
         }
 
-        // Step 8: Find the first marker in our list that matches the GameObject name
-        // We use LINQ’s FirstOrDefault to get the marker tuple (if any) with a matching name
-        // If no match is found, matchingMarker.gameObjectName will be null, and we return early
-        var matchingMarker = BlankGPS.DefaultMarkers.FirstOrDefault(marker => marker.gameObjectName == __instance.gameObject.name);
-        if (matchingMarker.gameObjectName == null) return;
+        // Step 8: Find all markers in our list that match the GameObject name
+        // We use LINQ’s Where to get all marker tuples with a matching name
+        // This ensures we check all entries, not just the first one (e.g., for GPSLocatorPickup with different positions)
+        var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
+        if (!matchingMarkers.Any()) return;
 
-        // Step 9: Get the identifier property value (e.g., _iconScale) from the GPSLocator
-        // We now know _iconScale is a property, so we use AccessTools.Property
-        // For now, we only handle fields or properties (not methods like Position); we’ll add that later
-        object identifierValue = null;
-        if (!matchingMarker.isMethod)
+        // Step 9: Iterate over all matching markers to find the correct one
+        // We need to check the identifier property (e.g., _iconScale or Position) for each match
+        foreach (var matchingMarker in matchingMarkers)
         {
-            identifierValue = AccessTools.Property(typeof(GPSLocator), "_iconScale")?.GetValue(__instance);
-            if (identifierValue == null)
+            // Get the identifier property value (e.g., _iconScale or Position) from the GPSLocator
+            // If it’s a property (e.g., _iconScale), use AccessTools.Property; if it’s a method (e.g., Position), use AccessTools.Method
+            object identifierValue = null;
+            if (!matchingMarker.isMethod)
             {
-                RLog.Error($"Could not find property _iconScale on GPSLocator for {matchingMarker.gameObjectName}");
-                return;
+                identifierValue = AccessTools.Property(typeof(GPSLocator), "_iconScale")?.GetValue(__instance);
+                if (identifierValue == null)
+                {
+                    RLog.Error($"Could not find property _iconScale on GPSLocator for {matchingMarker.gameObjectName}");
+                    return;
+                }
             }
-        }
-        else
-        {
-            // We’ll handle methods (e.g., Position) later when we add GPSLocatorPickup markers
-            return;
-        }
+            else
+            {
+                // Handle methods like Position for GPSLocatorPickup
+                identifierValue = AccessTools.Method(typeof(GPSLocator), matchingMarker.identifierProperty)?.Invoke(__instance, null);
+                if (identifierValue == null)
+                {
+                    RLog.Error($"Could not find method {matchingMarker.identifierProperty} on GPSLocator for {matchingMarker.gameObjectName}");
+                    return;
+                }
+            }
 
-        // Step 10: Compare the identifier value to the expected value
-        // This ensures we’re targeting the correct GPSLocator (e.g., _iconScale == 1.1f)
-        bool matches = false;
-        if (identifierValue is float floatValue && matchingMarker.identifierValue is float floatTarget)
-        {
-            matches = Mathf.Approximately(floatValue, floatTarget);
-        }
+            // Step 10: Compare the identifier value to the expected value
+            // This ensures we’re targeting the correct GPSLocator (e.g., _iconScale == 1.1f or matching Position)
+            bool matches = false;
+            if (identifierValue is float floatValue && matchingMarker.identifierValue is float floatTarget)
+            {
+                matches = Mathf.Approximately(floatValue, floatTarget);
+            }
+            else if (identifierValue is Vector3 vectorValue && matchingMarker.identifierValue is Vector3 vectorTarget)
+            {
+                matches = Vector3.Distance(vectorValue, vectorTarget) < 0.1f;
+            }
 
-        if (matches)
-        {
-            // Step 11: Log a message if we found a target marker with the correct properties
-            // This confirms that we’ve detected the specific marker we want to disable (e.g., CaveAEntranceGPS with _iconScale = 1.1)
-            RLog.Msg($"Found target marker: {__instance.gameObject.name} with {matchingMarker.identifierProperty} = {identifierValue}");
+            if (matches)
+            {
+                // Step 11: Log a message if we found a target marker with the correct properties
+                // This confirms that we’ve detected the specific marker we want to disable
+                RLog.Msg($"Found target marker: {__instance.gameObject.name} with {matchingMarker.identifierProperty} = {identifierValue}");
 
-            // Step 12: Disable the marker by calling Enable(false)
-            // This explicitly disables the GPSLocator, hiding the marker on the GPS
-            __instance.Enable(false);
+                // Step 12: Disable the marker by calling Enable(false)
+                // This explicitly disables the GPSLocator, hiding the marker on the GPS
+                __instance.Enable(false);
 
-            // Step 13: Log a message to confirm the marker is disabled
-            // This helps us verify that the marker was successfully disabled
-            RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+                // Step 13: Log a message to confirm the marker is disabled
+                // This helps us verify that the marker was successfully disabled
+                RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+
+                // Break after disabling the marker, as we’ve found the correct match
+                break;
+            }
         }
     }
 }
