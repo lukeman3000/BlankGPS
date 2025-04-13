@@ -7,6 +7,17 @@ using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS ma
 
 namespace BlankGPS;
 
+// Step 5.1: Define a class to store state for each GPSLocator
+// This will be stored directly in the Markers dictionary without attaching to a GameObject
+public class GPSLocatorState
+{
+    // The GPSLocator component instance
+    public GPSLocator Locator { get; set; }
+
+    // Tracks whether the marker is currently disabled (true = disabled, false = enabled)
+    public bool IsDisabled { get; set; }
+}
+
 public class BlankGPS : SonsMod
 {
     // Step 1: Define a list to store the markers we want to disable
@@ -18,6 +29,15 @@ public class BlankGPS : SonsMod
     // Step 1.1: Provide a public property to access the marker list
     // This allows other classes (e.g., GPSLocatorAwakePatch) to read the list while keeping _defaultMarkers private
     public static List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)> DefaultMarkers => _defaultMarkers;
+
+    // Step 5.2: Define a Dictionary to store managed GPSLocator instances
+    // The key is the GameObject name, and the value is the GPSLocatorState object
+    // This allows us to reference markers later without searching _defaultMarkers again
+    private static Dictionary<string, GPSLocatorState> _markers = new Dictionary<string, GPSLocatorState>();
+
+    // Step 5.3: Provide a public property to access the managed markers
+    // This allows other classes (e.g., for proximity enabling) to read the dictionary
+    public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
     public BlankGPS()
     {
@@ -46,12 +66,6 @@ public class BlankGPS : SonsMod
 
         // Step 3: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
-
-        // Uncomment any of these if you need a method to run on a specific update loop.
-        //OnUpdateCallback = MyUpdateMethod;
-        //OnLateUpdateCallback = MyLateUpdateMethod;
-        //OnFixedUpdateCallback = MyFixedUpdateMethod;
-        //OnGUICallback = MyGUIMethod;
 
         // Step 4: Enable Harmony patching for our mod
         // This tells RedLoader to apply all Harmony patches defined in our assembly (e.g., GPSLocatorAwakePatch)
@@ -157,6 +171,17 @@ public class GPSLocatorAwakePatch
                 // Step 13: Log a message to confirm the marker is disabled
                 // This helps us verify that the marker was successfully disabled
                 RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+
+                // Step 14: Add the GPSLocator to the dictionary of managed markers
+                // Create a GPSLocatorState object and store it in the dictionary
+                GPSLocatorState state = new GPSLocatorState();
+                state.Locator = __instance;
+                state.IsDisabled = true;
+
+                // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
+                string key = matchingMarker.isMethod ? $"{__instance.gameObject.name}_{identifierValue}" : __instance.gameObject.name;
+                BlankGPS.Markers[key] = state;
+                RLog.Msg($"Added marker to dictionary: {key}");
 
                 // Break after disabling the marker, as we’ve found the correct match
                 break;
