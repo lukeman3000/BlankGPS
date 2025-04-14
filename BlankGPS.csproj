@@ -6,6 +6,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <Reference Include="Alt.Json">
+        <HintPath>..\..\..\..\Program Files (x86)\Steam\steamapps\common\Sons Of The Forest\_Redloader\net6\Alt.Json.dll</HintPath>
+      </Reference>
       <Reference Include="Il2CppInterop.Common">
         <HintPath>$(GameDir)\_RedLoader\net6\Il2CppInterop.Common.dll</HintPath>
       </Reference>

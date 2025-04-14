@@ -3,6 +3,8 @@ using RedLoader; // For logging messages with RLog
 using HarmonyLib; // For Harmony patching (we’ll use this in the next step)
 using UnityEngine; // For Unity types like Vector3 (used for GPSLocatorPickup positions)
 using System.Collections.Generic; // For List and Dictionary (we’ll use Dictionary later)
+using System.IO; // For File and Path operations
+using Alt.Json; // For JSON serialization/deserialization
 using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS markers in SOTF)
 
 namespace BlankGPS;
@@ -16,6 +18,12 @@ public class GPSLocatorState
 
     // Tracks whether the marker is currently disabled (true = disabled, false = enabled)
     public bool IsDisabled { get; set; }
+}
+
+// Step 1.3: Minimal class for JSON testing (only marker names)
+public class MinimalMarkerData
+{
+    public string GameObjectName { get; set; }
 }
 
 public class BlankGPS : SonsMod
@@ -41,6 +49,7 @@ public class BlankGPS : SonsMod
 
     public BlankGPS()
     {
+        RLog.Msg("=== BlankGPS Constructor Started ===");
         RLog.Msg("BlankGPS mod loaded successfully");
 
         // Step 2: Initialize the marker list with all target markers
@@ -63,6 +72,77 @@ public class BlankGPS : SonsMod
             ("GPSLocatorPickup", "Position", new Vector3(-1340.964f, 95.4219f, 1411.981f), true),
             ("GPSLocatorPickup", "Position", new Vector3(-1797.652f, 14.4886f, 577.0323f), true)
         };
+
+        // Step 2.1: Load the minimal marker list from a JSON file in the mod folder's BlankGPS subfolder
+        RLog.Msg("Getting mods folder path...");
+        string modsFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+        RLog.Msg($"Mods folder: {modsFolder}");
+
+        RLog.Msg("Constructing subfolder path...");
+        string subFolder = Path.Combine(modsFolder, "BlankGPS");
+        RLog.Msg($"Subfolder: {subFolder}");
+
+        RLog.Msg("Constructing config file path...");
+        string configPath = Path.Combine(subFolder, "BlankGPS.json");
+        RLog.Msg($"Config path: {configPath}");
+
+        try
+        {
+            RLog.Msg("Checking if subfolder exists...");
+            // Create the BlankGPS subfolder if it doesn't exist
+            if (!Directory.Exists(subFolder))
+            {
+                RLog.Msg("Creating subfolder...");
+                Directory.CreateDirectory(subFolder);
+                RLog.Msg($"Created BlankGPS subfolder at {subFolder}.");
+            }
+            else
+            {
+                RLog.Msg("Subfolder already exists.");
+            }
+
+            RLog.Msg("Checking if config file exists...");
+            List<MinimalMarkerData> markerDataList;
+
+            if (!File.Exists(configPath))
+            {
+                RLog.Msg("Config file does not exist. Creating...");
+                // Create the JSON file with the full list of marker names
+                markerDataList = _defaultMarkers.Select(m => new MinimalMarkerData { GameObjectName = m.gameObjectName }).ToList();
+                RLog.Msg("Serializing marker data...");
+                string defaultJson = Alt.Json.JsonConvert.SerializeObject(markerDataList, Formatting.Indented);
+                RLog.Msg("Writing JSON to file...");
+                File.WriteAllText(configPath, defaultJson);
+                RLog.Msg($"Created minimal configuration file at {configPath}.");
+            }
+            else
+            {
+                RLog.Msg("Config file exists. Reading JSON...");
+                // Load the JSON file
+                string json = File.ReadAllText(configPath);
+                RLog.Msg("Deserializing JSON...");
+                markerDataList = Alt.Json.JsonConvert.DeserializeObject<List<MinimalMarkerData>>(json);
+                if (markerDataList == null)
+                {
+                    RLog.Error($"Failed to deserialize BlankGPS.json at {configPath}. Using default marker names.");
+                    markerDataList = _defaultMarkers.Select(m => new MinimalMarkerData { GameObjectName = m.gameObjectName }).ToList();
+                }
+                else
+                {
+                    RLog.Msg($"Loaded minimal marker list from {configPath} with {markerDataList.Count} markers.");
+                }
+            }
+
+            // Log the loaded marker names for verification
+            foreach (var marker in markerDataList)
+            {
+                RLog.Msg($"Loaded marker: {marker.GameObjectName}");
+            }
+        }
+        catch (System.Exception e)
+        {
+            RLog.Error($"Failed to load or create minimal configuration file at {configPath}: {e.Message}. Continuing with default marker list.");
+        }
 
         // Step 3: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
