@@ -1,15 +1,14 @@
 ﻿using SonsSdk;
 using RedLoader; // For logging messages with RLog
-using HarmonyLib; // For Harmony patching (we’ll use this in the next step)
+using HarmonyLib; // For Harmony patching
 using UnityEngine; // For Unity types like Vector3 (used for GPSLocatorPickup positions)
-using System.Collections.Generic; // For List and Dictionary (we’ll use Dictionary later)
+using System.Collections.Generic; // For List and Dictionary
 using System.IO; // For File and Path operations
-using Alt.Json; // For JSON serialization/deserialization
 using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS markers in SOTF)
 
 namespace BlankGPS;
 
-// Step 5.1: Define a class to store state for each GPSLocator
+// Step 1: Define a class to store state for each GPSLocator
 // This will be stored directly in the Markers dictionary without attaching to a GameObject
 public class GPSLocatorState
 {
@@ -20,32 +19,26 @@ public class GPSLocatorState
     public bool IsDisabled { get; set; }
 }
 
-// Step 1.3: Minimal class for JSON testing (only marker names)
-public class MinimalMarkerData
-{
-    public string GameObjectName { get; set; }
-}
-
 public class BlankGPS : SonsMod
 {
-    // Step 1: Define a list to store the markers we want to disable
+    // Step 2: Define a list to store the markers we want to disable
     // List of markers to target, each with a name, icon scale, and position
     private static List<(string gameObjectName, float iconScale, Vector3 position)> _defaultMarkers;
 
-    // Step 1.1: Provide a public property to access the marker list
+    // Step 3: Provide a public property to access the marker list
     // This allows other classes (e.g., GPSLocatorAwakePatch) to read the list while keeping _defaultMarkers private
     public static List<(string gameObjectName, float iconScale, Vector3 position)> DefaultMarkers => _defaultMarkers;
 
-    // Step 5.2: Define a Dictionary to store managed GPSLocator instances
+    // Step 4: Define a Dictionary to store managed GPSLocator instances
     // The key is the GameObject name, and the value is the GPSLocatorState object
     // This allows us to reference markers later without searching _defaultMarkers again
     private static Dictionary<string, GPSLocatorState> _markers = new Dictionary<string, GPSLocatorState>();
 
-    // Step 5.3: Provide a public property to access the managed markers
+    // Step 5: Provide a public property to access the managed markers
     // This allows other classes (e.g., for proximity enabling) to read the dictionary
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
-    // Enables a marker by setting its icon scale to the original value and refreshing the GPS
+    // Step 6: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
         // Set the icon scale to the original value
@@ -55,7 +48,7 @@ public class BlankGPS : SonsMod
         AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
     }
 
-    // Disables a marker by setting its icon scale to 0 and refreshing the GPS
+    // Step 7: Disables a marker by setting its icon scale to 0 and refreshing the GPS
     public static void MarkerDisable(GPSLocator locator)
     {
         // Set the icon scale to 0 to hide the marker
@@ -67,10 +60,7 @@ public class BlankGPS : SonsMod
 
     public BlankGPS()
     {
-        RLog.Msg("=== BlankGPS Constructor Started ===");
-        RLog.Msg("BlankGPS mod loaded successfully");
-
-        // Step 2: Initialize the marker list with all target markers
+        // Step 8: Initialize the marker list with all target markers
         // Each marker has a name, icon scale, and position
         _defaultMarkers = new List<(string gameObjectName, float iconScale, Vector3 position)>
         {
@@ -96,81 +86,10 @@ public class BlankGPS : SonsMod
             ("BunkerResidentialEntranceGPS", 0.8f, new Vector3(1233.412f, 238.91f, -654.541f))
         };
 
-        // Step 2.1: Load the minimal marker list from a JSON file in the mod folder's BlankGPS subfolder
-        RLog.Msg("Getting mods folder path...");
-        string modsFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-        RLog.Msg($"Mods folder: {modsFolder}");
-
-        RLog.Msg("Constructing subfolder path...");
-        string subFolder = Path.Combine(modsFolder, "BlankGPS");
-        RLog.Msg($"Subfolder: {subFolder}");
-
-        RLog.Msg("Constructing config file path...");
-        string configPath = Path.Combine(subFolder, "BlankGPS.json");
-        RLog.Msg($"Config path: {configPath}");
-
-        try
-        {
-            RLog.Msg("Checking if subfolder exists...");
-            // Create the BlankGPS subfolder if it doesn't exist
-            if (!Directory.Exists(subFolder))
-            {
-                RLog.Msg("Creating subfolder...");
-                Directory.CreateDirectory(subFolder);
-                RLog.Msg($"Created BlankGPS subfolder at {subFolder}.");
-            }
-            else
-            {
-                RLog.Msg("Subfolder already exists.");
-            }
-
-            RLog.Msg("Checking if config file exists...");
-            List<MinimalMarkerData> markerDataList;
-
-            if (!File.Exists(configPath))
-            {
-                RLog.Msg("Config file does not exist. Creating...");
-                // Create the JSON file with the full list of marker names
-                markerDataList = _defaultMarkers.Select(m => new MinimalMarkerData { GameObjectName = m.gameObjectName }).ToList();
-                RLog.Msg("Serializing marker data...");
-                string defaultJson = Alt.Json.JsonConvert.SerializeObject(markerDataList, Formatting.Indented);
-                RLog.Msg("Writing JSON to file...");
-                File.WriteAllText(configPath, defaultJson);
-                RLog.Msg($"Created minimal configuration file at {configPath}.");
-            }
-            else
-            {
-                RLog.Msg("Config file exists. Reading JSON...");
-                // Load the JSON file
-                string json = File.ReadAllText(configPath);
-                RLog.Msg("Deserializing JSON...");
-                markerDataList = Alt.Json.JsonConvert.DeserializeObject<List<MinimalMarkerData>>(json);
-                if (markerDataList == null)
-                {
-                    RLog.Error($"Failed to deserialize BlankGPS.json at {configPath}. Using default marker names.");
-                    markerDataList = _defaultMarkers.Select(m => new MinimalMarkerData { GameObjectName = m.gameObjectName }).ToList();
-                }
-                else
-                {
-                    RLog.Msg($"Loaded minimal marker list from {configPath} with {markerDataList.Count} markers.");
-                }
-            }
-
-            // Log the loaded marker names for verification
-            foreach (var marker in markerDataList)
-            {
-                RLog.Msg($"Loaded marker: {marker.GameObjectName}");
-            }
-        }
-        catch (System.Exception e)
-        {
-            RLog.Error($"Failed to load or create minimal configuration file at {configPath}: {e.Message}. Continuing with default marker list.");
-        }
-
-        // Step 3: Log the number of markers to confirm the list is initialized
+        // Step 9: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
 
-        // Step 4: Enable Harmony patching for our mod
+        // Step 10: Enable Harmony patching for our mod
         // This tells RedLoader to apply all Harmony patches defined in our assembly (e.g., GPSLocatorAwakePatch)
         HarmonyPatchAll = true;
     }
@@ -197,18 +116,18 @@ public class BlankGPS : SonsMod
     }
 }
 
-// Step 5: Harmony patch for GPSLocator.OnEnable
+// Step 11: Harmony patch for GPSLocator.OnEnable
 // This patch runs custom code whenever a GPSLocator component is enabled in the game
 // GPSLocator components control GPS markers (e.g., CaveAEntranceGPS), and OnEnable is called when the marker is loaded
 [HarmonyPatch(typeof(GPSLocator), "OnEnable")]
 public class GPSLocatorAwakePatch
 {
-    // Step 6: Define a Postfix method to run after OnEnable
+    // Step 12: Define a Postfix method to run after OnEnable
     // A Postfix runs after the original OnEnable method, and __instance is the specific GPSLocator component instance
     [HarmonyPostfix]
     public static void Postfix(GPSLocator __instance)
     {
-        // Step 7: Safety check for __instance
+        // Step 13: Safety check for __instance
         // Ensure the GPSLocator instance and its GameObject are valid before proceeding
         if (__instance == null || __instance.gameObject == null)
         {
@@ -216,13 +135,13 @@ public class GPSLocatorAwakePatch
             return;
         }
 
-        // Step 8: Find all markers in our list that match the GameObject name
+        // Step 14: Find all markers in our list that match the GameObject name
         // We use LINQ’s Where to get all marker tuples with a matching name
         // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
-        // Step 9: Iterate over all matching markers to find the correct one
+        // Step 15: Iterate over all matching markers to find the correct one
         foreach (var matchingMarker in matchingMarkers)
         {
             bool matches = false;
@@ -269,18 +188,11 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 10: Log a message if we found a target marker with the correct properties
-                // This confirms that we’ve detected the specific marker we want to disable
-                RLog.Msg($"Found target marker: {__instance.gameObject.name}");
-
-                // Step 11: Disable the marker by setting icon scale to 0 and refreshing
+                // Step 16: Disable the marker by setting icon scale to 0 and refreshing, and log the action
                 BlankGPS.MarkerDisable(__instance);
-
-                // Step 12: Log a message to confirm the marker is disabled
-                // This helps us verify that the marker was successfully disabled
                 RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
 
-                // Step 13: Add the GPSLocator to the dictionary of managed markers
+                // Step 17: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
@@ -289,7 +201,6 @@ public class GPSLocatorAwakePatch
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
                 string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
                 BlankGPS.Markers[key] = state;
-                RLog.Msg($"Added marker to dictionary: {key}");
 
                 // Break after disabling the marker, as we’ve found the correct match
                 break;
