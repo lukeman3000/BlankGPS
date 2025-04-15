@@ -29,14 +29,12 @@ public class MinimalMarkerData
 public class BlankGPS : SonsMod
 {
     // Step 1: Define a list to store the markers we want to disable
-    // This list will hold the markers we want to target (e.g., CaveAEntranceGPS)
-    // Each entry is a tuple with the GameObject name, the property to check (e.g., "_iconScale"),
-    // the expected value of that property (e.g., 1.1f), and whether the property is a method (e.g., true for "Position")
-    private static List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)> _defaultMarkers;
+    // List of markers to target, each with a name, icon scale, and position
+    private static List<(string gameObjectName, float iconScale, Vector3 position)> _defaultMarkers;
 
     // Step 1.1: Provide a public property to access the marker list
     // This allows other classes (e.g., GPSLocatorAwakePatch) to read the list while keeping _defaultMarkers private
-    public static List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)> DefaultMarkers => _defaultMarkers;
+    public static List<(string gameObjectName, float iconScale, Vector3 position)> DefaultMarkers => _defaultMarkers;
 
     // Step 5.2: Define a Dictionary to store managed GPSLocator instances
     // The key is the GameObject name, and the value is the GPSLocatorState object
@@ -47,30 +45,55 @@ public class BlankGPS : SonsMod
     // This allows other classes (e.g., for proximity enabling) to read the dictionary
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
+    // Enables a marker by setting its icon scale to the original value and refreshing the GPS
+    public static void MarkerEnable(GPSLocator locator, float iconScale)
+    {
+        // Set the icon scale to the original value
+        AccessTools.Property(typeof(GPSLocator), "_iconScale")?.SetValue(locator, iconScale);
+
+        // Refresh the GPS to apply the change
+        AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
+    }
+
+    // Disables a marker by setting its icon scale to 0 and refreshing the GPS
+    public static void MarkerDisable(GPSLocator locator)
+    {
+        // Set the icon scale to 0 to hide the marker
+        AccessTools.Property(typeof(GPSLocator), "_iconScale")?.SetValue(locator, 0f);
+
+        // Refresh the GPS to apply the change
+        AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
+    }
+
     public BlankGPS()
     {
         RLog.Msg("=== BlankGPS Constructor Started ===");
         RLog.Msg("BlankGPS mod loaded successfully");
 
         // Step 2: Initialize the marker list with all target markers
-        // This includes all cave entrances and specific GPSLocatorPickup markers
-        // Each tuple contains: name (e.g., "CaveAEntranceGPS"), property to check (e.g., "_iconScale" or "Position"),
-        // expected value (e.g., 1.1f or a Vector3), and whether it’s a method (true for "Position", false for "_iconScale")
-        _defaultMarkers = new List<(string gameObjectName, string identifierProperty, object identifierValue, bool isMethod)>
+        // Each marker has a name, icon scale, and position
+        _defaultMarkers = new List<(string gameObjectName, float iconScale, Vector3 position)>
         {
-            ("CaveAEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveBEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveCEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveDAEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveDBEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveFEntranceGPS", "_iconScale", 1.1f, false),
-            ("CaveGAEntranceGPS", "_iconScale", 1.1f, false),
-            ("SnowCaveAEntranceGPS", "_iconScale", 1.1f, false),
-            ("SnowCaveBEntranceGPS", "_iconScale", 1.1f, false),
-            ("SnowCaveCEntranceGPS", "_iconScale", 1.1f, false),
-            ("GPSLocatorPickup", "Position", new Vector3(-626.3061f, 145.3385f, 386.1634f), true),
-            ("GPSLocatorPickup", "Position", new Vector3(-1340.964f, 95.4219f, 1411.981f), true),
-            ("GPSLocatorPickup", "Position", new Vector3(-1797.652f, 14.4886f, 577.0323f), true)
+            ("CaveAEntranceGPS", 1.1f, new Vector3(-422.92f, 14.97f, 1515.22f)),
+            ("CaveBEntranceGPS", 1.1f, new Vector3(-1108.61f, 128.04f, -175.92f)),
+            ("CaveCEntranceGPS", 1.1f, new Vector3(-531.23f, 196.68f, 128.6799f)),
+            ("CaveDAEntranceGPS", 1.1f, new Vector3(-534.868f, 291.38f, -630.3311f)),
+            ("CaveDBEntranceGPS", 1.1f, new Vector3(972.29f, 246.1f, -407.12f)),
+            ("CaveFEntranceGPS", 1.1f, new Vector3(1288.067f, 179.286f, 588.5831f)),
+            ("CaveGAEntranceGPS", 1.1f, new Vector3(1694.611f, 28.5672f, 1042.029f)),
+            ("SnowCaveAEntranceGPS", 1.1f, new Vector3(-137.06f, 408.01f, -92.55f)),
+            ("SnowCaveBEntranceGPS", 1.1f, new Vector3(430.54f, 516.5f, -206.81f)),
+            ("SnowCaveCEntranceGPS", 1.1f, new Vector3(-106.84f, 396.46f, -1058.57f)),
+            ("GPSLocatorPickup", 0.7f, new Vector3(-626.3061f, 145.3385f, 386.1634f)),
+            ("GPSLocatorPickup", 0.7f, new Vector3(-1340.964f, 95.4219f, 1411.981f)),
+            ("GPSLocatorPickup", 0.7f, new Vector3(-1797.652f, 14.4886f, 577.0323f)),
+            ("BunkerAEntranceGPS", 0.8f, new Vector3(-477.83f, 86.9f, 710.4299f)),
+            ("BunkerBEntranceGPS", 0.8f, new Vector3(-1133.19f, 278.63f, -1101.63f)),
+            ("BunkerCEntranceGPS", 0.8f, new Vector3(1109.243f, 128.325f, 1007.23f)),
+            ("BunkerEntertainmentEntranceGPS", 0.8f, new Vector3(-1189.18f, 67.94f, 129.62f)),
+            ("BunkerFoodEntranceGPS", 0.8f, new Vector3(-1014.03f, 99.79f, 1029.67f)),
+            ("BunkerLuxuryEntranceGPS", 0.8f, new Vector3(1750.42f, 41.27f, 552.599f)),
+            ("BunkerResidentialEntranceGPS", 0.8f, new Vector3(1233.412f, 238.91f, -654.541f))
         };
 
         // Step 2.1: Load the minimal marker list from a JSON file in the mod folder's BlankGPS subfolder
@@ -195,71 +218,76 @@ public class GPSLocatorAwakePatch
 
         // Step 8: Find all markers in our list that match the GameObject name
         // We use LINQ’s Where to get all marker tuples with a matching name
-        // This ensures we check all entries, not just the first one (e.g., for GPSLocatorPickup with different positions)
+        // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
         // Step 9: Iterate over all matching markers to find the correct one
-        // We need to check the identifier property (e.g., _iconScale or Position) for each match
         foreach (var matchingMarker in matchingMarkers)
         {
-            // Get the identifier property value (e.g., _iconScale or Position) from the GPSLocator
-            // If it’s a property (e.g., _iconScale), use AccessTools.Property; if it’s a method (e.g., Position), use AccessTools.Method
-            object identifierValue = null;
-            if (!matchingMarker.isMethod)
-            {
-                identifierValue = AccessTools.Property(typeof(GPSLocator), "_iconScale")?.GetValue(__instance);
-                if (identifierValue == null)
-                {
-                    RLog.Error($"Could not find property _iconScale on GPSLocator for {matchingMarker.gameObjectName}");
-                    return;
-                }
-            }
-            else
-            {
-                // Handle methods like Position for GPSLocatorPickup
-                identifierValue = AccessTools.Method(typeof(GPSLocator), matchingMarker.identifierProperty)?.Invoke(__instance, null);
-                if (identifierValue == null)
-                {
-                    RLog.Error($"Could not find method {matchingMarker.identifierProperty} on GPSLocator for {matchingMarker.gameObjectName}");
-                    return;
-                }
-            }
-
-            // Step 10: Compare the identifier value to the expected value
-            // This ensures we’re targeting the correct GPSLocator (e.g., _iconScale == 1.1f or matching Position)
             bool matches = false;
-            if (identifierValue is float floatValue && matchingMarker.identifierValue is float floatTarget)
+
+            // For Cave and Bunker markers, check the _maxVisualRange property
+            if (matchingMarker.gameObjectName.Contains("Cave") || matchingMarker.gameObjectName.Contains("Bunker"))
             {
-                matches = Mathf.Approximately(floatValue, floatTarget);
+                // Fetch _maxVisualRange property
+                object maxVisualRangeValue = AccessTools.Property(typeof(GPSLocator), "_maxVisualRange")?.GetValue(__instance);
+                if (maxVisualRangeValue == null)
+                {
+                    RLog.Error($"Could not find property _maxVisualRange on GPSLocator for {matchingMarker.gameObjectName}");
+                    return;
+                }
+
+                // Compare _maxVisualRange with the expected value (600)
+                if (maxVisualRangeValue is int intValue)
+                {
+                    matches = intValue == 600;
+                }
+                else
+                {
+                    RLog.Error($"_maxVisualRange for {matchingMarker.gameObjectName} is not an int: {maxVisualRangeValue?.GetType().Name}");
+                    return;
+                }
             }
-            else if (identifierValue is Vector3 vectorValue && matchingMarker.identifierValue is Vector3 vectorTarget)
+            // For GPSLocatorPickup markers, check the Position method
+            else if (matchingMarker.gameObjectName == "GPSLocatorPickup")
             {
-                matches = Vector3.Distance(vectorValue, vectorTarget) < 0.1f;
+                // Get the Position method result from the GPSLocator
+                object positionValue = AccessTools.Method(typeof(GPSLocator), "Position")?.Invoke(__instance, null);
+                if (positionValue == null)
+                {
+                    RLog.Error($"Could not find method Position on GPSLocator for {matchingMarker.gameObjectName}");
+                    return;
+                }
+
+                // Compare the fetched position with the stored position
+                if (positionValue is Vector3 vectorValue)
+                {
+                    matches = Vector3.Distance(vectorValue, matchingMarker.position) < 0.1f;
+                }
             }
 
             if (matches)
             {
-                // Step 11: Log a message if we found a target marker with the correct properties
+                // Step 10: Log a message if we found a target marker with the correct properties
                 // This confirms that we’ve detected the specific marker we want to disable
-                RLog.Msg($"Found target marker: {__instance.gameObject.name} with {matchingMarker.identifierProperty} = {identifierValue}");
+                RLog.Msg($"Found target marker: {__instance.gameObject.name}");
 
-                // Step 12: Disable the marker by calling Enable(false)
-                // This explicitly disables the GPSLocator, hiding the marker on the GPS
-                __instance.Enable(false);
+                // Step 11: Disable the marker by setting icon scale to 0 and refreshing
+                BlankGPS.MarkerDisable(__instance);
 
-                // Step 13: Log a message to confirm the marker is disabled
+                // Step 12: Log a message to confirm the marker is disabled
                 // This helps us verify that the marker was successfully disabled
                 RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
 
-                // Step 14: Add the GPSLocator to the dictionary of managed markers
+                // Step 13: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
                 state.IsDisabled = true;
 
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
-                string key = matchingMarker.isMethod ? $"{__instance.gameObject.name}_{identifierValue}" : __instance.gameObject.name;
+                string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
                 BlankGPS.Markers[key] = state;
                 RLog.Msg($"Added marker to dictionary: {key}");
 
