@@ -3,7 +3,6 @@ using RedLoader; // For logging messages with RLog
 using HarmonyLib; // For Harmony patching
 using UnityEngine; // For Unity types like Vector3 (used for GPSLocatorPickup positions)
 using System.Collections.Generic; // For List and Dictionary
-using System.IO; // For File and Path operations
 using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS markers in SOTF)
 
 namespace BlankGPS;
