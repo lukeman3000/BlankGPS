@@ -281,21 +281,13 @@ public class GPSLocatorAwakePatch
     [HarmonyPostfix]
     public static void Postfix(GPSLocator __instance)
     {
-        // Step 17: Safety check for __instance
-        // Ensure the GPSLocator instance and its GameObject are valid before proceeding
-        if (__instance == null || __instance.gameObject == null)
-        {
-            RLog.Error("Invalid GPSLocator instance or GameObject in OnEnable patch");
-            return;
-        }
-
-        // Step 18: Find all markers in our list that match the GameObject name
+        // Step 17: Find all markers in our list that match the GameObject name
         // We use LINQ’s Where to get all marker tuples with a matching name
         // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
-        // Step 19: Iterate over all matching markers to find the correct one
+        // Step 18: Iterate over all matching markers to find the correct one
         foreach (var matchingMarker in matchingMarkers)
         {
             bool matches = false;
@@ -342,7 +334,7 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 20: Disable the marker and increment the counter if successful and proximity is enabled
+                // Step 19: Disable the marker and increment the counter if successful and proximity is enabled
                 if (Config.ProximityEnabled.Value)
                 {
                     if (BlankGPS.MarkerDisable(__instance))
@@ -351,7 +343,7 @@ public class GPSLocatorAwakePatch
                     }
                 }
 
-                // Step 21: Add the GPSLocator to the dictionary of managed markers
+                // Step 20: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
@@ -366,7 +358,7 @@ public class GPSLocatorAwakePatch
             }
         }
 
-        // Step 22: Log the total number of markers disabled after all markers are processed
+        // Step 21: Log the total number of markers disabled after all markers are processed
         if (_disabledCount == BlankGPS.DefaultMarkers.Count || BlankGPS.Markers.Count == BlankGPS.DefaultMarkers.Count)
         {
             RLog.Msg($"Disabled {_disabledCount} markers for targeted GPSLocators");
