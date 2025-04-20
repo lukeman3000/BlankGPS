@@ -17,6 +17,9 @@ public class GPSLocatorState
 
     // Tracks whether the marker is currently disabled (true = disabled, false = enabled)
     public bool IsDisabled { get; set; }
+
+    // Stores the original icon scale for re-enabling the marker
+    public float OriginalIconScale { get; set; }
 }
 
 // Step 2: Component to handle proximity trigger events
@@ -75,8 +78,8 @@ public class ProximityTrigger : MonoBehaviour
             {
                 if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
                 {
-                    // Use MarkerEnable to enable the marker with the correct icon scale
-                    BlankGPS.MarkerEnable(_gpsLocator, BlankGPS.DefaultMarkers.Find(m => m.gameObjectName == _gpsLocator.gameObject.name).iconScale);
+                    // Use MarkerEnable to enable the marker with the original icon scale from the state
+                    BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
 
                     // Update the state to reflect that the marker is enabled
                     state.IsDisabled = false;
@@ -309,6 +312,7 @@ public class GPSLocatorAwakePatch
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
                 state.IsDisabled = Config.ProximityEnabled.Value; // Set initial state based on toggle
+                state.OriginalIconScale = matchingMarker.iconScale; // Store the original icon scale
 
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
                 string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
