@@ -18,26 +18,119 @@ public class GPSLocatorState
     public bool IsDisabled { get; set; }
 }
 
+// Step 2: Component to handle proximity trigger events
+[RegisterTypeInIl2Cpp]
+public class ProximityTrigger : MonoBehaviour
+{
+    private bool _hasTriggered = false;
+    private bool _hasExited = false;
+    private GPSLocator _gpsLocator;
+    private int _playerLayer;
+
+    private void Start()
+    {
+        // Step 2.1: Get the GPSLocator component from the parent GameObject
+        _gpsLocator = transform.parent.GetComponent<GPSLocator>();
+        if (_gpsLocator == null)
+        {
+            RLog.Error($"Could not find GPSLocator on parent GameObject: {transform.parent.name}");
+        }
+
+        // Step 2.2: Set the GameObject to the player's layer to match LocalPlayer
+        _playerLayer = LayerMask.NameToLayer("Player");
+        if (_playerLayer == -1)
+        {
+            RLog.Error("Could not find Player layer! Using default layer.");
+        }
+        else
+        {
+            gameObject.layer = _playerLayer;
+        }
+    }
+
+    // Step 2.3: Method to check if the layer was set to Player
+    public bool IsLayerSetToPlayer()
+    {
+        return _playerLayer != -1;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        // Step 2.4: Check if the collider is the player (tagged "Player" and on the Player layer)
+        if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasTriggered)
+        {
+            _hasTriggered = true;
+            _hasExited = false; // Reset the exit flag when entering
+            RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
+
+            // Step 2.5: Enable the marker using BlankGPS's marker management
+            if (_gpsLocator != null)
+            {
+                // Find the marker's state in the Markers dictionary
+                string key = _gpsLocator.gameObject.name;
+                if (!BlankGPS.Markers.ContainsKey(key))
+                {
+                    // For GPSLocatorPickup, the key includes the position
+                    foreach (var marker in BlankGPS.Markers)
+                    {
+                        if (marker.Key.StartsWith(_gpsLocator.gameObject.name))
+                        {
+                            key = marker.Key;
+                            break;
+                        }
+                    }
+                }
+
+                if (BlankGPS.Markers.TryGetValue(key, out GPSLocatorState state))
+                {
+                    // Use MarkerEnable to enable the marker with the correct icon scale
+                    BlankGPS.MarkerEnable(_gpsLocator, BlankGPS.DefaultMarkers.Find(m => m.gameObjectName == _gpsLocator.gameObject.name).iconScale);
+
+                    // Update the state to reflect that the marker is enabled
+                    state.IsDisabled = false;
+
+                    RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
+                }
+                else
+                {
+                    RLog.Error($"Could not find marker state for {_gpsLocator.gameObject.name} in Markers dictionary!");
+                }
+            }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        // Step 2.6: Reset the flag when the player leaves the trigger area (tagged "Player" and on the Player layer)
+        if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasExited)
+        {
+            _hasExited = true;
+            _hasTriggered = false; // Reset the entry flag when exiting
+            RLog.Msg($"Player exited proximity trigger at position {transform.position}");
+        }
+    }
+}
+
 public class BlankGPS : SonsMod
 {
-    // Step 2: Define a list to store the markers we want to disable
+    // Step 3: Define a list to store the markers we want to disable
     // List of markers to target, each with a name, icon scale, and position
     private static List<(string gameObjectName, float iconScale, Vector3 position)> _defaultMarkers;
 
-    // Step 3: Provide a public property to access the marker list
+    // Step 4: Provide a public property to access the marker list
     // This allows other classes (e.g., GPSLocatorAwakePatch) to read the list while keeping _defaultMarkers private
     public static List<(string gameObjectName, float iconScale, Vector3 position)> DefaultMarkers => _defaultMarkers;
 
-    // Step 4: Define a Dictionary to store managed GPSLocator instances
+    // Step 5: Define a Dictionary to store managed GPSLocator instances
     // The key is the GameObject name, and the value is the GPSLocatorState object
     // This allows us to reference markers later without searching _defaultMarkers again
     private static Dictionary<string, GPSLocatorState> _markers = new Dictionary<string, GPSLocatorState>();
 
-    // Step 5: Provide a public property to access the managed markers
+    // Step 6: Provide a public property to access the managed markers
     // This allows other classes (e.g., for proximity enabling) to read the dictionary
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
-    // Step 6: Enables a marker by setting its icon scale to the original value and refreshing the GPS
+    // Step 7: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
         // Set the icon scale to the original value
@@ -47,7 +140,7 @@ public class BlankGPS : SonsMod
         AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
     }
 
-    // Step 7: Disables a marker by setting its icon scale to 0 and refreshing the GPS
+    // Step 8: Disables a marker by setting its icon scale to 0 and refreshing the GPS
     public static void MarkerDisable(GPSLocator locator)
     {
         // Set the icon scale to 0 to hide the marker
@@ -57,9 +150,38 @@ public class BlankGPS : SonsMod
         AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
     }
 
+    // Step 9: Helper method to create and configure a ProximityTrigger for a marker
+    public static void CreateProximityTrigger(GameObject gpsObject)
+    {
+        // Step 9.1: Create a child GameObject for the proximity trigger
+        GameObject triggerObject = new GameObject($"ProximityTrigger_{gpsObject.name}");
+
+        // Step 9.2: Make triggerObject a child of gpsObject without preserving world position
+        triggerObject.transform.SetParent(gpsObject.transform, false);
+
+        // Step 9.3: Add a SphereCollider to triggerObject
+        SphereCollider collider = triggerObject.AddComponent<SphereCollider>();
+        if (collider == null)
+        {
+            RLog.Error($"Failed to add SphereCollider to {triggerObject.name}!");
+            return;
+        }
+
+        // Step 9.4: Configure the SphereCollider
+        collider.radius = 10f;
+        collider.isTrigger = true;
+
+        // Step 9.5: Attach the ProximityTrigger component to triggerObject
+        ProximityTrigger trigger = triggerObject.AddComponent<ProximityTrigger>();
+        if (trigger == null)
+        {
+            RLog.Error($"Failed to add ProximityTrigger to {triggerObject.name}!");
+        }
+    }
+
     public BlankGPS()
     {
-        // Step 8: Initialize the marker list with all target markers
+        // Step 10: Initialize the marker list with all target markers
         // Each marker has a name, icon scale, and position
         _defaultMarkers = new List<(string gameObjectName, float iconScale, Vector3 position)>
         {
@@ -85,10 +207,10 @@ public class BlankGPS : SonsMod
             ("BunkerResidentialEntranceGPS", 0.8f, new Vector3(1233.412f, 238.91f, -654.541f))
         };
 
-        // Step 9: Log the number of markers to confirm the list is initialized
+        // Step 11: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
 
-        // Step 10: Enable Harmony patching for our mod
+        // Step 12: Enable Harmony patching for our mod
         // This tells RedLoader to apply all Harmony patches defined in our assembly (e.g., GPSLocatorAwakePatch)
         HarmonyPatchAll = true;
     }
@@ -112,21 +234,40 @@ public class BlankGPS : SonsMod
     protected override void OnGameStart()
     {
         // This is called once the player spawns in the world and gains control.
+        // Step 13: Add ProximityTrigger to all markers in the Markers dictionary
+        int triggerCount = 0;
+        int layerSetCount = 0;
+        int playerLayer = LayerMask.NameToLayer("Player");
+
+        foreach (var marker in Markers)
+        {
+            CreateProximityTrigger(marker.Value.Locator.gameObject);
+            triggerCount++;
+            // Check if the trigger's layer was set to Player (assuming it succeeded if no error was logged)
+            if (playerLayer != -1)
+            {
+                layerSetCount++;
+            }
+        }
+
+        // Step 14: Log the summary of added triggers and layer assignment
+        RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for targeted GPSLocators (set to Player layer ID: {playerLayer})");
     }
 }
 
-// Step 11: Harmony patch for GPSLocator.OnEnable
+// Step 15: Harmony patch for GPSLocator.OnEnable
 // This patch runs custom code whenever a GPSLocator component is enabled in the game
 // GPSLocator components control GPS markers (e.g., CaveAEntranceGPS), and OnEnable is called when the marker is loaded
 [HarmonyPatch(typeof(GPSLocator), "OnEnable")]
 public class GPSLocatorAwakePatch
 {
-    // Step 12: Define a Postfix method to run after OnEnable
-    // A Postfix runs after the original OnEnable method, and __instance is the specific GPSLocator component instance
+    // Step 16: Track the number of markers disabled
+    private static int _disabledCount = 0;
+
     [HarmonyPostfix]
     public static void Postfix(GPSLocator __instance)
     {
-        // Step 13: Safety check for __instance
+        // Step 17: Safety check for __instance
         // Ensure the GPSLocator instance and its GameObject are valid before proceeding
         if (__instance == null || __instance.gameObject == null)
         {
@@ -134,13 +275,13 @@ public class GPSLocatorAwakePatch
             return;
         }
 
-        // Step 14: Find all markers in our list that match the GameObject name
+        // Step 18: Find all markers in our list that match the GameObject name
         // We use LINQ’s Where to get all marker tuples with a matching name
         // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
-        // Step 15: Iterate over all matching markers to find the correct one
+        // Step 19: Iterate over all matching markers to find the correct one
         foreach (var matchingMarker in matchingMarkers)
         {
             bool matches = false;
@@ -187,11 +328,11 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 16: Disable the marker by setting icon scale to 0 and refreshing, and log the action
+                // Step 20: Disable the marker and increment the counter
                 BlankGPS.MarkerDisable(__instance);
-                RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+                _disabledCount++;
 
-                // Step 17: Add the GPSLocator to the dictionary of managed markers
+                // Step 21: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
@@ -204,6 +345,13 @@ public class GPSLocatorAwakePatch
                 // Break after disabling the marker, as we’ve found the correct match
                 break;
             }
+        }
+
+        // Step 22: Log the total number of markers disabled after the last one
+        if (_disabledCount == BlankGPS.DefaultMarkers.Count)
+        {
+            RLog.Msg($"Disabled {_disabledCount} markers for targeted GPSLocators");
+            _disabledCount = 0; // Reset for future loads
         }
     }
 }
