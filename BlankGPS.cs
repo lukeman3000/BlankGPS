@@ -27,6 +27,7 @@ public class ProximityTrigger : MonoBehaviour
     private bool _hasExited = false;
     private GPSLocator _gpsLocator;
     private int _playerLayer;
+    private string _markerKey; // Cached key for the marker in BlankGPS.Markers
 
     private void Start()
     {
@@ -40,36 +41,39 @@ public class ProximityTrigger : MonoBehaviour
         // Step 2.2: Set the GameObject to the player's layer to match LocalPlayer
         _playerLayer = LayerMask.NameToLayer("Player");
         gameObject.layer = _playerLayer;
+
+        // Step 2.3: Cache the marker key for this GPSLocator
+        if (_gpsLocator != null)
+        {
+            _markerKey = _gpsLocator.gameObject.name;
+            if (!BlankGPS.Markers.ContainsKey(_markerKey))
+            {
+                // For GPSLocatorPickup, the key includes the position
+                foreach (var marker in BlankGPS.Markers)
+                {
+                    if (marker.Key.StartsWith(_gpsLocator.gameObject.name))
+                    {
+                        _markerKey = marker.Key;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Step 2.3: Check if the collider is the player (tagged "Player" and on the Player layer)
+        // Step 2.4: Check if the collider is the player (tagged "Player" and on the Player layer)
         if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasTriggered)
         {
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
             RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
 
-            // Step 2.4: Enable the marker using BlankGPS's marker management if proximity is enabled
+            // Step 2.5: Enable the marker using BlankGPS's marker management if proximity is enabled
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
             {
-                // Find the marker's state in the Markers dictionary
-                string key = _gpsLocator.gameObject.name;
-                if (!BlankGPS.Markers.ContainsKey(key))
-                {
-                    // For GPSLocatorPickup, the key includes the position
-                    foreach (var marker in BlankGPS.Markers)
-                    {
-                        if (marker.Key.StartsWith(_gpsLocator.gameObject.name))
-                        {
-                            key = marker.Key;
-                            break;
-                        }
-                    }
-                }
-
-                if (BlankGPS.Markers.TryGetValue(key, out GPSLocatorState state))
+                if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
                 {
                     // Use MarkerEnable to enable the marker with the correct icon scale
                     BlankGPS.MarkerEnable(_gpsLocator, BlankGPS.DefaultMarkers.Find(m => m.gameObjectName == _gpsLocator.gameObject.name).iconScale);
@@ -89,7 +93,7 @@ public class ProximityTrigger : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        // Step 2.5: Reset the flag when the player leaves the trigger area (tagged "Player" and on the Player layer)
+        // Step 2.6: Reset the flag when the player leaves the trigger area (tagged "Player" and on the Player layer)
         if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasExited)
         {
             _hasExited = true;
