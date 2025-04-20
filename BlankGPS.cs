@@ -39,32 +39,19 @@ public class ProximityTrigger : MonoBehaviour
 
         // Step 2.2: Set the GameObject to the player's layer to match LocalPlayer
         _playerLayer = LayerMask.NameToLayer("Player");
-        if (_playerLayer == -1)
-        {
-            RLog.Error("Could not find Player layer! Using default layer.");
-        }
-        else
-        {
-            gameObject.layer = _playerLayer;
-        }
-    }
-
-    // Step 2.3: Method to check if the layer was set to Player
-    public bool IsLayerSetToPlayer()
-    {
-        return _playerLayer != -1;
+        gameObject.layer = _playerLayer;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Step 2.4: Check if the collider is the player (tagged "Player" and on the Player layer)
+        // Step 2.3: Check if the collider is the player (tagged "Player" and on the Player layer)
         if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasTriggered)
         {
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
             RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
 
-            // Step 2.5: Enable the marker using BlankGPS's marker management if proximity is enabled
+            // Step 2.4: Enable the marker using BlankGPS's marker management if proximity is enabled
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
             {
                 // Find the marker's state in the Markers dictionary
@@ -102,7 +89,7 @@ public class ProximityTrigger : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        // Step 2.6: Reset the flag when the player leaves the trigger area (tagged "Player" and on the Player layer)
+        // Step 2.5: Reset the flag when the player leaves the trigger area (tagged "Player" and on the Player layer)
         if (other.CompareTag("Player") && other.gameObject.layer == _playerLayer && !_hasExited)
         {
             _hasExited = true;
@@ -160,8 +147,7 @@ public class BlankGPS : SonsMod
         }
     }
 
-    // Step 9: Helper method to create and configure a ProximityTrigger for a marker
-    public static (bool success, bool layerSet) CreateProximityTrigger(GameObject gpsObject)
+    public static bool CreateProximityTrigger(GameObject gpsObject)
     {
         // Step 9.1: Create a child GameObject for the proximity trigger
         GameObject triggerObject = new GameObject($"ProximityTrigger_{gpsObject.name}");
@@ -174,7 +160,7 @@ public class BlankGPS : SonsMod
         if (collider == null)
         {
             RLog.Error($"Failed to add SphereCollider to {triggerObject.name}!");
-            return (false, false);
+            return false;
         }
 
         // Step 9.4: Configure the SphereCollider
@@ -186,12 +172,10 @@ public class BlankGPS : SonsMod
         if (trigger == null)
         {
             RLog.Error($"Failed to add ProximityTrigger to {triggerObject.name}!");
-            return (false, false);
+            return false;
         }
 
-        // Step 9.6: Check if the layer was set to Player
-        bool layerSet = trigger.IsLayerSetToPlayer();
-        return (true, layerSet);
+        return true;
     }
 
     public BlankGPS()
@@ -248,23 +232,17 @@ public class BlankGPS : SonsMod
         // This is called once the player spawns in the world and gains control.
         // Step 13: Add ProximityTrigger to all markers in the Markers dictionary
         int triggerCount = 0;
-        int layerSetCount = 0;
         int playerLayer = LayerMask.NameToLayer("Player");
 
         foreach (var marker in Markers)
         {
-            var (success, layerSet) = CreateProximityTrigger(marker.Value.Locator.gameObject);
-            if (success)
+            if (CreateProximityTrigger(marker.Value.Locator.gameObject))
             {
                 triggerCount++;
-                if (layerSet)
-                {
-                    layerSetCount++;
-                }
             }
         }
 
-        // Step 14: Log the summary of added triggers and layer assignment
+        // Step 14: Log the summary of added triggers
         RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for targeted GPSLocators (set to Player layer ID: {playerLayer})");
     }
 }
