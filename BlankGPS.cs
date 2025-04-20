@@ -4,6 +4,7 @@ using HarmonyLib; // For Harmony patching
 using UnityEngine; // For Unity types like Vector3 (used for GPSLocatorPickup positions)
 using System.Collections.Generic; // For List and Dictionary
 using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS markers in SOTF)
+using SUI; // For SettingsRegistry
 
 namespace BlankGPS;
 
@@ -63,8 +64,8 @@ public class ProximityTrigger : MonoBehaviour
             _hasExited = false; // Reset the exit flag when entering
             RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
 
-            // Step 2.5: Enable the marker using BlankGPS's marker management
-            if (_gpsLocator != null)
+            // Step 2.5: Enable the marker using BlankGPS's marker management if proximity is enabled
+            if (_gpsLocator != null && Config.ProximityEnabled.Value)
             {
                 // Find the marker's state in the Markers dictionary
                 string key = _gpsLocator.gameObject.name;
@@ -177,7 +178,7 @@ public class BlankGPS : SonsMod
         }
 
         // Step 9.4: Configure the SphereCollider
-        collider.radius = 10f;
+        collider.radius = Config.ProximityRadius.Value;
         collider.isTrigger = true;
 
         // Step 9.5: Attach the ProximityTrigger component to triggerObject
@@ -231,18 +232,15 @@ public class BlankGPS : SonsMod
 
     protected override void OnInitializeMod()
     {
-        // Do your early mod initialization which doesn't involve game or sdk references here
+        // Step 12.1: Initialize configuration settings
         Config.Init();
     }
 
     protected override void OnSdkInitialized()
     {
-        // Do your mod initialization which involves game or sdk references here
-        // This is for stuff like UI creation, event registration etc.
+        // Step 12.2: Create the in-game settings UI and initialize the BlankGPS UI
         BlankGPSUi.Create();
-
-        // Add in-game settings ui for your mod.
-        // SettingsRegistry.CreateSettings(this, null, typeof(Config));
+        SettingsRegistry.CreateSettings(this, null, typeof(Config));
     }
 
     protected override void OnGameStart()
@@ -344,17 +342,20 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 20: Disable the marker and increment the counter if successful
-                if (BlankGPS.MarkerDisable(__instance))
+                // Step 20: Disable the marker and increment the counter if successful and proximity is enabled
+                if (Config.ProximityEnabled.Value)
                 {
-                    _disabledCount++;
+                    if (BlankGPS.MarkerDisable(__instance))
+                    {
+                        _disabledCount++;
+                    }
                 }
 
                 // Step 21: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
-                state.IsDisabled = true;
+                state.IsDisabled = Config.ProximityEnabled.Value; // Set initial state based on toggle
 
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
                 string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
