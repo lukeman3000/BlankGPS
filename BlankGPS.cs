@@ -298,15 +298,33 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 18: Always disable the marker at game start and log the action
-                BlankGPS.MarkerDisable(__instance);
-                RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+                // Step 18: Determine if the marker type should be managed based on config settings
+                bool shouldDisable = false;
+                if (matchingMarker.gameObjectName.Contains("Cave") && Config.ManageCaves.Value)
+                {
+                    shouldDisable = true;
+                }
+                else if (matchingMarker.gameObjectName == "GPSLocatorPickup" && Config.ManageTeamB.Value)
+                {
+                    shouldDisable = true;
+                }
+                else if (matchingMarker.gameObjectName.Contains("Bunker") && Config.ManageBunkers.Value)
+                {
+                    shouldDisable = true;
+                }
 
-                // Step 19: Add the GPSLocator to the dictionary of managed markers
+                // Step 19: Disable the marker at game start if its type is managed, and log the action
+                if (shouldDisable)
+                {
+                    BlankGPS.MarkerDisable(__instance);
+                    RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
+                }
+
+                // Step 20: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
-                state.IsDisabled = true; // Marker is always disabled at start
+                state.IsDisabled = shouldDisable; // Reflect whether the marker is disabled
                 state.OriginalIconScale = matchingMarker.iconScale; // Store the original icon scale
 
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
