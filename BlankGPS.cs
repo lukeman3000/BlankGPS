@@ -123,32 +123,24 @@ public class BlankGPS : SonsMod
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
     // Step 7: Enables a marker by setting its icon scale to the original value and refreshing the GPS
+    // Step 7: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
         // Set the icon scale to the original value
-        AccessTools.Property(typeof(GPSLocator), "_iconScale")?.SetValue(locator, iconScale);
+        locator._iconScale = iconScale;
 
         // Refresh the GPS to apply the change
-        AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
+        locator.ForceRefresh();
     }
 
     // Step 8: Disables a marker by setting its icon scale to 0 and refreshing the GPS
-    public static bool MarkerDisable(GPSLocator locator)
+    public static void MarkerDisable(GPSLocator locator)
     {
-        try
-        {
-            // Set the icon scale to 0 to hide the marker
-            AccessTools.Property(typeof(GPSLocator), "_iconScale")?.SetValue(locator, 0f);
+        // Set the icon scale to 0 to hide the marker
+        locator._iconScale = 0f;
 
-            // Refresh the GPS to apply the change
-            AccessTools.Method(typeof(GPSLocator), "ForceRefresh")?.Invoke(locator, null);
-            return true; // Success
-        }
-        catch (System.Exception e)
-        {
-            RLog.Error($"Failed to disable marker {locator.gameObject.name}: {e.Message}");
-            return false; // Failure
-        }
+        // Refresh the GPS to apply the change
+        locator.ForceRefresh();
     }
 
     public static bool CreateProximityTrigger(GameObject gpsObject)
@@ -278,51 +270,38 @@ public class GPSLocatorAwakePatch
             if (matchingMarker.gameObjectName.Contains("Cave") || matchingMarker.gameObjectName.Contains("Bunker"))
             {
                 // Fetch _maxVisualRange property
-                object maxVisualRangeValue = AccessTools.Property(typeof(GPSLocator), "_maxVisualRange")?.GetValue(__instance);
-                if (maxVisualRangeValue == null)
+                int maxVisualRangeValue = __instance._maxVisualRange;
+                if (maxVisualRangeValue == 0) // Check if the value is 0 (default if not set)
                 {
                     RLog.Error($"Could not find property _maxVisualRange on GPSLocator for {matchingMarker.gameObjectName}");
                     return;
                 }
 
                 // Compare _maxVisualRange with the expected value (600)
-                if (maxVisualRangeValue is int intValue)
-                {
-                    matches = intValue == 600;
-                }
-                else
-                {
-                    RLog.Error($"_maxVisualRange for {matchingMarker.gameObjectName} is not an int: {maxVisualRangeValue?.GetType().Name}");
-                    return;
-                }
+                matches = maxVisualRangeValue == 600;
             }
             // For GPSLocatorPickup markers, check the Position method
             else if (matchingMarker.gameObjectName == "GPSLocatorPickup")
             {
                 // Get the Position method result from the GPSLocator
-                object positionValue = AccessTools.Method(typeof(GPSLocator), "Position")?.Invoke(__instance, null);
-                if (positionValue == null)
+                Vector3 positionValue = __instance.Position();
+                if (positionValue == Vector3.zero) // Check if the value is zero (default if not set)
                 {
                     RLog.Error($"Could not find method Position on GPSLocator for {matchingMarker.gameObjectName}");
                     return;
                 }
 
                 // Compare the fetched position with the stored position
-                if (positionValue is Vector3 vectorValue)
-                {
-                    matches = Vector3.Distance(vectorValue, matchingMarker.position) < 0.1f;
-                }
+                matches = Vector3.Distance(positionValue, matchingMarker.position) < 0.1f;
             }
 
             if (matches)
             {
-                // Step 19: Disable the marker and increment the counter if successful and proximity is enabled
+                // Step 19: Disable the marker and increment the counter if proximity is enabled
                 if (Config.ProximityEnabled.Value)
                 {
-                    if (BlankGPS.MarkerDisable(__instance))
-                    {
-                        _disabledCount++;
-                    }
+                    BlankGPS.MarkerDisable(__instance);
+                    _disabledCount++;
                 }
 
                 // Step 20: Add the GPSLocator to the dictionary of managed markers
