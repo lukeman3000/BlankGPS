@@ -78,7 +78,7 @@ public class ProximityTrigger : MonoBehaviour
             {
                 if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
                 {
-                    // Use MarkerEnable to enable the marker with the original icon scale from the state
+                    // Only re-enable the marker if ProximityEnabled is true
                     BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
 
                     // Update the state to reflect that the marker is enabled
@@ -241,8 +241,9 @@ public class BlankGPS : SonsMod
             }
         }
 
-        // Step 14: Log the summary of added triggers
+        // Step 14: Log the summary of added triggers and processed markers
         RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for targeted GPSLocators (set to Player layer ID: {playerLayer})");
+        RLog.Msg($"Processed {BlankGPS.Markers.Count} out of {BlankGPS.DefaultMarkers.Count} targeted GPSLocators");
     }
 }
 
@@ -252,19 +253,16 @@ public class BlankGPS : SonsMod
 [HarmonyPatch(typeof(GPSLocator), "OnEnable")]
 public class GPSLocatorAwakePatch
 {
-    // Step 16: Track the number of markers disabled
-    private static int _disabledCount = 0;
-
+    // Step 16: Find all markers in our list that match the GameObject name
+    // We use LINQ’s Where to get all marker tuples with a matching name
+    // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
     [HarmonyPostfix]
     public static void Postfix(GPSLocator __instance)
     {
-        // Step 17: Find all markers in our list that match the GameObject name
-        // We use LINQ’s Where to get all marker tuples with a matching name
-        // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
-        // Step 18: Iterate over all matching markers to find the correct one
+        // Step 17: Iterate over all matching markers to find the correct one
         foreach (var matchingMarker in matchingMarkers)
         {
             bool matches = false;
@@ -300,18 +298,15 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 19: Disable the marker and increment the counter if proximity is enabled
-                if (Config.ProximityEnabled.Value)
-                {
-                    BlankGPS.MarkerDisable(__instance);
-                    _disabledCount++;
-                }
+                // Step 18: Always disable the marker at game start and log the action
+                BlankGPS.MarkerDisable(__instance);
+                RLog.Msg($"Disabled marker: {__instance.gameObject.name}");
 
-                // Step 20: Add the GPSLocator to the dictionary of managed markers
+                // Step 19: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState();
                 state.Locator = __instance;
-                state.IsDisabled = Config.ProximityEnabled.Value; // Set initial state based on toggle
+                state.IsDisabled = true; // Marker is always disabled at start
                 state.OriginalIconScale = matchingMarker.iconScale; // Store the original icon scale
 
                 // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
@@ -321,13 +316,6 @@ public class GPSLocatorAwakePatch
                 // Break after processing the marker, as we’ve found the correct match
                 break;
             }
-        }
-
-        // Step 21: Log the total number of markers disabled after all markers are processed
-        if (_disabledCount == BlankGPS.DefaultMarkers.Count || BlankGPS.Markers.Count == BlankGPS.DefaultMarkers.Count)
-        {
-            RLog.Msg($"Disabled {_disabledCount} markers for targeted GPSLocators");
-            _disabledCount = 0; // Reset for future loads
         }
     }
 }
