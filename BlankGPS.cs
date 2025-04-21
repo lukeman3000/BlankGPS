@@ -71,7 +71,6 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
-            RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
 
             // Step 2.5: Enable the marker if proximity is enabled and the marker type is managed
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
@@ -116,7 +115,6 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasExited = true;
             _hasTriggered = false; // Reset the entry flag when exiting
-            RLog.Msg($"Player exited proximity trigger at position {transform.position}");
         }
     }
 }
@@ -163,6 +161,7 @@ public class BlankGPS : SonsMod
     // Step 9: Updates the state of all markers of a specific type based on the manage setting
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
+        int affectedCount = 0;
         foreach (var marker in Markers)
         {
             string markerName = marker.Key;
@@ -190,16 +189,24 @@ public class BlankGPS : SonsMod
                     // Disable the marker if its type should now be managed
                     MarkerDisable(state.Locator);
                     state.IsDisabled = true;
-                    RLog.Msg($"Disabled marker due to config change: {markerName}");
+                    affectedCount++;
                 }
                 else
                 {
                     // Re-enable the marker if its type should no longer be managed
                     MarkerEnable(state.Locator, state.OriginalIconScale);
                     state.IsDisabled = false;
-                    RLog.Msg($"Enabled marker due to config change: {markerName}");
+                    affectedCount++;
                 }
             }
+        }
+
+        // Log a summary of the changes
+        if (affectedCount > 0)
+        {
+            string action = shouldManage ? "Disabled" : "Enabled";
+            string typeName = typeIdentifier == "Cave" ? "cave" : typeIdentifier == "GPSLocatorPickup" ? "Team B" : "bunker";
+            RLog.Msg($"{action} {affectedCount} {typeName} markers due to config change");
         }
     }
 
