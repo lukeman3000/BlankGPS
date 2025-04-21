@@ -126,7 +126,6 @@ public class BlankGPS : SonsMod
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
 
     // Step 7: Enables a marker by setting its icon scale to the original value and refreshing the GPS
-    // Step 7: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
         // Set the icon scale to the original value
@@ -144,6 +143,49 @@ public class BlankGPS : SonsMod
 
         // Refresh the GPS to apply the change
         locator.ForceRefresh();
+    }
+
+    // Step 9: Updates the state of all markers of a specific type based on the manage setting
+    public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
+    {
+        foreach (var marker in Markers)
+        {
+            string markerName = marker.Key;
+            GPSLocatorState state = marker.Value;
+
+            // Determine if the marker matches the type
+            bool isMatchingType = false;
+            if (typeIdentifier == "Cave" && markerName.Contains("Cave"))
+            {
+                isMatchingType = true;
+            }
+            else if (typeIdentifier == "GPSLocatorPickup" && markerName.Contains("GPSLocatorPickup"))
+            {
+                isMatchingType = true;
+            }
+            else if (typeIdentifier == "Bunker" && markerName.Contains("Bunker"))
+            {
+                isMatchingType = true;
+            }
+
+            if (isMatchingType)
+            {
+                if (shouldManage)
+                {
+                    // Disable the marker if its type should now be managed
+                    MarkerDisable(state.Locator);
+                    state.IsDisabled = true;
+                    RLog.Msg($"Disabled marker due to config change: {markerName}");
+                }
+                else
+                {
+                    // Re-enable the marker if its type should no longer be managed
+                    MarkerEnable(state.Locator, state.OriginalIconScale);
+                    state.IsDisabled = false;
+                    RLog.Msg($"Enabled marker due to config change: {markerName}");
+                }
+            }
+        }
     }
 
     public static bool CreateProximityTrigger(GameObject gpsObject)

@@ -71,9 +71,28 @@ public static class Config
         _lastManageBunkers = ManageBunkers.Value;
     }
 
-    // Same as the callback in "CreateSettings". Called when the settings ui is closed.
+    // Called when the settings UI is closed to update marker states based on config changes
     public static void OnSettingsUiClosed()
     {
-        // Placeholder for future real-time update logic
+        // Check for changes in ManageCaves
+        if (_lastManageCaves != ManageCaves.Value)
+        {
+            BlankGPS.UpdateMarkerStatesForType("Cave", ManageCaves.Value);
+            _lastManageCaves = ManageCaves.Value;
+        }
+
+        // Check for changes in ManageTeamB
+        if (_lastManageTeamB != ManageTeamB.Value)
+        {
+            BlankGPS.UpdateMarkerStatesForType("GPSLocatorPickup", ManageTeamB.Value);
+            _lastManageTeamB = ManageTeamB.Value;
+        }
+
+        // Check for changes in ManageBunkers
+        if (_lastManageBunkers != ManageBunkers.Value)
+        {
+            BlankGPS.UpdateMarkerStatesForType("Bunker", ManageBunkers.Value);
+            _lastManageBunkers = ManageBunkers.Value;
+        }
     }
 }
