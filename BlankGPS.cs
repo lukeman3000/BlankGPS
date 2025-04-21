@@ -73,18 +73,33 @@ public class ProximityTrigger : MonoBehaviour
             _hasExited = false; // Reset the exit flag when entering
             RLog.Msg($"Player entered proximity trigger at position {transform.position}!");
 
-            // Step 2.5: Enable the marker using BlankGPS's marker management if proximity is enabled
+            // Step 2.5: Enable the marker if proximity is enabled and the marker type is managed
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
             {
                 if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
                 {
-                    // Only re-enable the marker if ProximityEnabled is true
-                    BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
+                    // Check if the marker type is managed based on config settings
+                    bool isTypeManaged = false;
+                    if (_markerKey.Contains("Cave") && Config.ManageCaves.Value)
+                    {
+                        isTypeManaged = true;
+                    }
+                    else if (_markerKey.Contains("GPSLocatorPickup") && Config.ManageTeamB.Value)
+                    {
+                        isTypeManaged = true;
+                    }
+                    else if (_markerKey.Contains("Bunker") && Config.ManageBunkers.Value)
+                    {
+                        isTypeManaged = true;
+                    }
 
-                    // Update the state to reflect that the marker is enabled
-                    state.IsDisabled = false;
-
-                    RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
+                    // Only re-enable the marker if its type is managed and ProximityEnabled is true
+                    if (isTypeManaged)
+                    {
+                        BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
+                        state.IsDisabled = false;
+                        RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
+                    }
                 }
                 else
                 {
