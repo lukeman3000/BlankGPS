@@ -74,7 +74,6 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
-            RLog.Msg($"Player entered proximity trigger at position {transform.position}!"); // Reintroduced for testing
 
             // Step 2.5: Enable the marker if proximity is enabled and the marker type is managed
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
@@ -119,7 +118,6 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasExited = true;
             _hasTriggered = false; // Reset the entry flag when exiting
-            RLog.Msg($"Player exited proximity trigger at position {transform.position}"); // Reintroduced for testing
         }
     }
 }
