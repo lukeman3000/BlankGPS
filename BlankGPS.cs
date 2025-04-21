@@ -74,6 +74,7 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
+            RLog.Msg($"Player entered proximity trigger at position {transform.position}!"); // Reintroduced for testing
 
             // Step 2.5: Enable the marker if proximity is enabled and the marker type is managed
             if (_gpsLocator != null && Config.ProximityEnabled.Value)
@@ -118,6 +119,7 @@ public class ProximityTrigger : MonoBehaviour
         {
             _hasExited = true;
             _hasTriggered = false; // Reset the entry flag when exiting
+            RLog.Msg($"Player exited proximity trigger at position {transform.position}"); // Reintroduced for testing
         }
     }
 }
@@ -165,6 +167,7 @@ public class BlankGPS : SonsMod
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
         int affectedCount = 0;
+        int triggerCount = 0;
         foreach (var marker in Markers)
         {
             string markerName = marker.Key;
@@ -198,6 +201,10 @@ public class BlankGPS : SonsMod
                     if (state.TriggerObject == null)
                     {
                         state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
+                        if (state.TriggerObject != null)
+                        {
+                            triggerCount++;
+                        }
                     }
                 }
                 else
@@ -217,12 +224,19 @@ public class BlankGPS : SonsMod
             }
         }
 
-        // Log a summary of the changes
+        // Log a summary of the marker state changes
         if (affectedCount > 0)
         {
             string action = shouldManage ? "Disabled" : "Enabled";
             string typeName = typeIdentifier == "Cave" ? "cave" : typeIdentifier == "GPSLocatorPickup" ? "Team B" : "bunker";
             RLog.Msg($"{action} {affectedCount} {typeName} markers due to config change");
+        }
+
+        // Log a summary of triggers created
+        if (triggerCount > 0)
+        {
+            string typeName = typeIdentifier == "Cave" ? "cave" : typeIdentifier == "GPSLocatorPickup" ? "Team B" : "bunker";
+            RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for {typeName} markers");
         }
     }
 
