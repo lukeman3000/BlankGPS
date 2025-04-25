@@ -22,9 +22,6 @@ public static class Config
     // Toggle for managing bunker entrance markers
     public static ConfigEntry<bool> ManageBunkers { get; private set; }
 
-    // Auto populated after calling SettingsRegistry.CreateSettings...
-    private static SettingsRegistry.SettingsEntry _settingsEntry;
-
     // Previous values for detecting changes in OnSettingsUiClosed
     private static bool _lastManageCaves;
     private static bool _lastManageTeamB;
