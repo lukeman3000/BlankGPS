@@ -88,6 +88,9 @@ public class GPSLocatorState
 
     // Stores the reference to the ProximityTrigger GameObject (if created)
     public GameObject TriggerObject { get; set; }
+
+    // Tracks if the game has enabled the marker
+    public bool IsGameEnabled { get; set; }
 }
 
 // Step 2: Component to handle proximity trigger events
@@ -207,6 +210,20 @@ public class BlankGPS : SonsMod
     // Step 8: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
+        bool isEnabled = BlankGPS.Markers.TryGetValue(locator.gameObject.name, out GPSLocatorState state) && state.IsGameEnabled;
+        if (!isEnabled)
+        {
+            RLog.Debug($"MarkerEnable: Enabling {locator.gameObject.name} (was disabled)");
+            locator.Enable(true);
+            if (state != null)
+            {
+                state.IsGameEnabled = true;
+            }
+        }
+        else
+        {
+            RLog.Debug($"MarkerEnable: {locator.gameObject.name} already enabled, updating iconScale to {iconScale}");
+        }
         SetMarkerIconScale(locator, iconScale);
     }
 
@@ -509,12 +526,27 @@ public class GPSLocatorAwakePatch
                     Locator = __instance,
                     IsDisabled = shouldDisable,
                     OriginalIconScale = matchingMarker.iconScale,
-                    TriggerObject = null
+                    TriggerObject = null,
+                    IsGameEnabled = false
                 };
 
                 BlankGPS.Markers[key] = state;
                 break;
             }
+        }
+    }
+}
+
+[HarmonyPatch(typeof(GPSLocator), "Enable")]
+public class GPSLocatorEnablePatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(GPSLocator __instance, bool enable)
+    {
+        if (enable && BlankGPS.Markers.TryGetValue(__instance.gameObject.name, out GPSLocatorState state))
+        {
+            state.IsGameEnabled = true;
+            RLog.Debug($"GPSLocatorEnablePatch: Game enabled {__instance.gameObject.name}");
         }
     }
 }
