@@ -275,18 +275,22 @@ public class BlankGPS : SonsMod
             {
                 if (shouldManage)
                 {
-                    // Step 11.3: Disable the marker if its type should now be managed
-                    MarkerDisable(state.Locator);
-                    state.IsDisabled = true;
-                    affectedCount++;
-
-                    // Step 11.4: Create a trigger and collider for the marker if it doesn't already have one
-                    if (state.TriggerObject == null)
+                    // Step 11.3: Disable the marker if its type should now be managed and it wasn't previously discovered
+                    bool wasPreviouslyEnabled = _loadedMarkerStates.TryGetValue(markerName, out bool loadedIsDisabled) && !loadedIsDisabled;
+                    if (!wasPreviouslyEnabled)
                     {
-                        state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
-                        if (state.TriggerObject != null)
+                        MarkerDisable(state.Locator);
+                        state.IsDisabled = true;
+                        affectedCount++;
+
+                        // Step 11.4: Create a trigger and collider for the marker if it doesn't already have one
+                        if (state.TriggerObject == null)
                         {
-                            triggerCount++;
+                            state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
+                            if (state.TriggerObject != null)
+                            {
+                                triggerCount++;
+                            }
                         }
                     }
                 }
