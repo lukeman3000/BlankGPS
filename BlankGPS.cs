@@ -58,8 +58,8 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         {
             BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
             RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
-            // Apply saved state to existing markers (Scenario 2: Load After Postfix)
-            if (BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
+            // Apply saved state only if the marker type is managed (Scenario 2: Load After Postfix)
+            if (BlankGPS.IsMarkerTypeManaged(savedState.Key) && BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
             {
                 state.IsDisabled = savedState.Value;
                 if (state.IsDisabled)
@@ -510,16 +510,11 @@ public class GPSLocatorAwakePatch
                 // Step 22: Determine if the marker type should be managed based on config settings
                 bool shouldDisable = BlankGPS.IsMarkerTypeManaged(__instance.gameObject.name);
 
-                // Step 23: Check for a saved state in _loadedMarkerStates (Scenario 1: Load Before Postfix)
+                // Step 23: Check for a saved state in _loadedMarkerStates only if the marker type is managed
                 string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
-                if (BlankGPS._loadedMarkerStates.TryGetValue(key, out bool loadedIsDisabled))
+                if (shouldDisable && BlankGPS._loadedMarkerStates.TryGetValue(key, out bool loadedIsDisabled))
                 {
                     shouldDisable = loadedIsDisabled;
-                    //RLog.Debug($"Using loaded state for {key}: IsDisabled={shouldDisable}");
-                }
-                else
-                {
-                    //RLog.Debug($"No saved state for {key} in _loadedMarkerStates, using default IsDisabled={shouldDisable}");
                 }
 
                 // Step 24: Apply the appropriate state to the marker
