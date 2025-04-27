@@ -1,10 +1,10 @@
 ﻿using SonsSdk;
-using RedLoader; // For logging messages with RLog
-using HarmonyLib; // For Harmony patching
-using UnityEngine; // For Unity types like Vector3 (used for GPSLocatorPickup positions)
-using System.Collections.Generic; // For List and Dictionary
-using Sons.Gameplay.GPS; // For the GPSLocator component (used to control GPS markers in SOTF)
-using SUI; // For SettingsRegistry
+using RedLoader;
+using HarmonyLib;
+using UnityEngine;
+using System.Collections.Generic;
+using Sons.Gameplay.GPS;
+using SUI;
 
 namespace BlankGPS;
 
@@ -37,7 +37,7 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
             if (BlankGPS.IsMarkerTypeManaged(marker.Key))
             {
                 saveData.MarkerStates[marker.Key] = marker.Value.IsDisabled;
-                RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
+                //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
             }
         }
         RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
@@ -53,9 +53,25 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         }
 
         RLog.Debug("Loading BlankGPS marker states...");
+        BlankGPS._loadedMarkerStates.Clear();
         foreach (var savedState in obj.MarkerStates)
         {
+            BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
             RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+            // Apply saved state to existing markers (Scenario 2: Load After Postfix)
+            if (BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
+            {
+                state.IsDisabled = savedState.Value;
+                if (state.IsDisabled)
+                {
+                    BlankGPS.MarkerDisable(state.Locator);
+                }
+                else
+                {
+                    BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
+                }
+                  //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
+            }
         }
         RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
     }
@@ -489,13 +505,29 @@ public class GPSLocatorAwakePatch
                 // Step 22: Determine if the marker type should be managed based on config settings
                 bool shouldDisable = BlankGPS.IsMarkerTypeManaged(__instance.gameObject.name);
 
-                // Step 23: Disable the marker at game start if its type is managed
+                // Step 23: Check for a saved state in _loadedMarkerStates (Scenario 1: Load Before Postfix)
+                string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
+                if (BlankGPS._loadedMarkerStates.TryGetValue(key, out bool loadedIsDisabled))
+                {
+                    shouldDisable = loadedIsDisabled;
+                    //RLog.Debug($"Using loaded state for {key}: IsDisabled={shouldDisable}");
+                }
+                else
+                {
+                    RLog.Debug($"No saved state for {key} in _loadedMarkerStates, using default IsDisabled={shouldDisable}");
+                }
+
+                // Step 24: Apply the appropriate state to the marker
                 if (shouldDisable)
                 {
                     BlankGPS.MarkerDisable(__instance);
                 }
+                else
+                {
+                    BlankGPS.MarkerEnable(__instance, matchingMarker.iconScale);
+                }
 
-                // Step 24: Add the GPSLocator to the dictionary of managed markers
+                // Step 25: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState
                 {
@@ -505,8 +537,6 @@ public class GPSLocatorAwakePatch
                     TriggerObject = null // Initialize with no trigger (will be set in OnGameStart if managed)
                 };
 
-                // Use the GameObject name as the key; for GPSLocatorPickup, append the position to make it unique
-                string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
                 BlankGPS.Markers[key] = state;
 
                 // Break after processing the marker, as we’ve found the correct match
