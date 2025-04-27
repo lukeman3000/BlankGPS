@@ -8,6 +8,59 @@ using SUI; // For SettingsRegistry
 
 namespace BlankGPS;
 
+// Class to hold save data for marker states
+[System.Serializable]
+public class SaveData
+{
+    public Dictionary<string, bool> MarkerStates;
+
+    public SaveData()
+    {
+        MarkerStates = new Dictionary<string, bool>();
+    }
+}
+
+// Save manager for BlankGPS marker states
+public class BlankGPSSaveManager : ICustomSaveable<SaveData>
+{
+    public string Name => "BlankGPSSaveManager";
+
+    // Include in player save for multiplayer compatibility
+    public bool IncludeInPlayerSave => true;
+
+    public SaveData Save()
+    {
+        RLog.Debug("Saving BlankGPS marker states...");
+        SaveData saveData = new SaveData();
+        foreach (var marker in BlankGPS.Markers)
+        {
+            if (BlankGPS.IsMarkerTypeManaged(marker.Key))
+            {
+                saveData.MarkerStates[marker.Key] = marker.Value.IsDisabled;
+                RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
+            }
+        }
+        RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
+        return saveData;
+    }
+
+    public void Load(SaveData obj)
+    {
+        if (obj == null || obj.MarkerStates == null)
+        {
+            RLog.Warning("No marker states loaded from SaveData");
+            return;
+        }
+
+        RLog.Debug("Loading BlankGPS marker states...");
+        foreach (var savedState in obj.MarkerStates)
+        {
+            RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+        }
+        RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
+    }
+}
+
 // Step 1: Define a class to store state for each GPSLocator
 // This will be stored directly in the Markers dictionary without attaching to a GameObject
 public class GPSLocatorState
@@ -85,6 +138,11 @@ public class ProximityTrigger : MonoBehaviour
                     // Check if the marker type is managed based on config settings
                     if (BlankGPS.IsMarkerTypeManaged(_markerKey))
                     {
+                        // Enable bunker markers explicitly, as they start disabled until laptop interaction
+                        if (_markerKey.Contains("Bunker"))
+                        {
+                            _gpsLocator.Enable(true);
+                        }
                         BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
                         state.IsDisabled = false;
                         RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
@@ -127,6 +185,9 @@ public class BlankGPS : SonsMod
     // Step 6: Provide a public property to access the managed markers
     // This allows other classes (e.g., for proximity enabling) to read the dictionary
     public static Dictionary<string, GPSLocatorState> Markers => _markers;
+
+    // Stores loaded marker states for Postfix to check (Scenario 1: Load Before Postfix)
+    public static Dictionary<string, bool> _loadedMarkerStates { get; private set; } = new Dictionary<string, bool>();
 
     // Step 7: Sets the icon scale of a marker and refreshes the GPS
     private static void SetMarkerIconScale(GPSLocator locator, float iconScale)
@@ -311,6 +372,10 @@ public class BlankGPS : SonsMod
     {
         // Step 16.1: Initialize configuration settings
         Config.Init();
+
+        // Step 16.2: Register the save manager for BlankGPS
+        var saveManager = new BlankGPSSaveManager();
+        SonsSaveTools.Register(saveManager);
     }
 
     protected override void OnSdkInitialized()
