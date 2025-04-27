@@ -68,9 +68,14 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
                 }
                 else
                 {
+                    // Enable bunker markers explicitly for saved discoveries
+                    if (savedState.Key.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(true);
+                    }
                     BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
                 }
-                  //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
+                //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
             }
         }
         RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
@@ -154,6 +159,11 @@ public class ProximityTrigger : MonoBehaviour
                     // Check if the marker type is managed based on config settings
                     if (BlankGPS.IsMarkerTypeManaged(_markerKey))
                     {
+                        // Enable bunker markers explicitly for proximity discoveries
+                        if (_markerKey.Contains("Bunker"))
+                        {
+                            _gpsLocator.Enable(true);
+                        }
                         BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
                         state.IsDisabled = false;
                         RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
@@ -210,11 +220,6 @@ public class BlankGPS : SonsMod
     // Step 8: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
-        // Enable bunker markers explicitly, as they start disabled until laptop interaction or proximity discovery
-        if (locator.gameObject.name.Contains("Bunker"))
-        {
-            locator.Enable(true);
-        }
         SetMarkerIconScale(locator, iconScale);
     }
 
@@ -514,7 +519,7 @@ public class GPSLocatorAwakePatch
                 }
                 else
                 {
-                    RLog.Debug($"No saved state for {key} in _loadedMarkerStates, using default IsDisabled={shouldDisable}");
+                    //RLog.Debug($"No saved state for {key} in _loadedMarkerStates, using default IsDisabled={shouldDisable}");
                 }
 
                 // Step 24: Apply the appropriate state to the marker
