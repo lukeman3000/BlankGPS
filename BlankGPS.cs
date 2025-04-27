@@ -138,11 +138,6 @@ public class ProximityTrigger : MonoBehaviour
                     // Check if the marker type is managed based on config settings
                     if (BlankGPS.IsMarkerTypeManaged(_markerKey))
                     {
-                        // Enable bunker markers explicitly, as they start disabled until laptop interaction
-                        if (_markerKey.Contains("Bunker"))
-                        {
-                            _gpsLocator.Enable(true);
-                        }
                         BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
                         state.IsDisabled = false;
                         RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
@@ -199,6 +194,11 @@ public class BlankGPS : SonsMod
     // Step 8: Enables a marker by setting its icon scale to the original value and refreshing the GPS
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
+        // Enable bunker markers explicitly, as they start disabled until laptop interaction or proximity discovery
+        if (locator.gameObject.name.Contains("Bunker"))
+        {
+            locator.Enable(true);
+        }
         SetMarkerIconScale(locator, iconScale);
     }
 
