@@ -3,6 +3,7 @@ using RedLoader;
 using HarmonyLib;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq; // Added for string.Join
 using Sons.Gameplay.GPS;
 using SUI;
 
@@ -37,22 +38,27 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
             if (BlankGPS.IsMarkerTypeManaged(marker.Key))
             {
                 saveData.MarkerStates[marker.Key] = marker.Value.IsDisabled;
-                //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
+                RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
             }
         }
         RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
+        RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         return saveData;
     }
 
     public void Load(SaveData obj)
     {
+        RLog.Debug("Loading BlankGPS marker states...");
+        RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        BlankGPS._originalMarkerStates.Clear();
+        RLog.Debug("Cleared _originalMarkerStates");
+
         if (obj == null || obj.MarkerStates == null)
         {
             RLog.Warning("No marker states loaded from SaveData");
             return;
         }
 
-        RLog.Debug("Loading BlankGPS marker states...");
         BlankGPS._loadedMarkerStates.Clear();
         foreach (var savedState in obj.MarkerStates)
         {
@@ -75,10 +81,11 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
                     }
                     BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
                 }
-                //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
+                RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
             }
         }
         RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
+        RLog.Debug($"Markers after load: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 }
 
@@ -211,7 +218,7 @@ public class BlankGPS : SonsMod
     public static Dictionary<string, bool> _loadedMarkerStates { get; private set; } = new Dictionary<string, bool>();
 
     // Stores original marker states to preserve discovery status when toggling management
-    private static Dictionary<string, bool> _originalMarkerStates = new Dictionary<string, bool>();
+    public static Dictionary<string, bool> _originalMarkerStates { get; private set; } = new Dictionary<string, bool>();
 
     // Step 7: Sets the icon scale of a marker and refreshes the GPS
     private static void SetMarkerIconScale(GPSLocator locator, float iconScale)
@@ -247,6 +254,10 @@ public class BlankGPS : SonsMod
     // Step 11: Updates the state of all markers of a specific type based on the manage setting
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
+        RLog.Debug($"UpdateMarkerStatesForType({typeIdentifier}, shouldManage={shouldManage}) called");
+        RLog.Debug($"_originalMarkerStates before update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        RLog.Debug($"Markers before update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+
         // Step 11.1: Iterate over markers and update their state and triggers
         int affectedCount = 0;
         int triggerCount = 0;
@@ -337,41 +348,8 @@ public class BlankGPS : SonsMod
             RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for {typeName} markers");
         }
 
-        // Step 11.9: Refresh all markers to ensure GPS updates immediately
-        RefreshAllMarkers();
-    }
-
-    // Step 11.9: Refreshes all markers to update the GPS display
-    private static void RefreshAllMarkers()
-    {
-        foreach (var marker in Markers)
-        {
-            GPSLocatorState state = marker.Value;
-            RLog.Debug($"Refresh {marker.Key}: IsDisabled={state.IsDisabled}");
-            if (BlankGPS.IsMarkerTypeManaged(marker.Key))
-            {
-                if (state.IsDisabled)
-                {
-                    MarkerDisable(state.Locator);
-                }
-                else
-                {
-                    // Enable bunker markers for discoveries
-                    if (marker.Key.Contains("Bunker"))
-                    {
-                        state.Locator.Enable(true);
-                    }
-                    MarkerEnable(state.Locator, state.OriginalIconScale);
-                }
-            }
-            else
-            {
-                // Reset unmanaged markers to base game state
-                MarkerEnable(state.Locator, state.OriginalIconScale);
-                state.IsDisabled = false;
-            }
-        }
-        RLog.Debug("Refreshed all GPS markers");
+        RLog.Debug($"_originalMarkerStates after update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        RLog.Debug($"Markers after update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
@@ -435,36 +413,42 @@ public class BlankGPS : SonsMod
             ("BunkerResidentialEntranceGPS", 0.8f, new Vector3(1233.412f, 238.91f, -654.541f))
         };
 
-        // Step 14: Log the number of markers to confirm the list is initialized
+        // Step 13.1: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
+        RLog.Debug($"_originalMarkerStates on init: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
 
-        // Step 15: Enable Harmony patching for our mod
+        // Step 14: Enable Harmony patching for our mod
         // This tells RedLoader to apply all Harmony patches defined in our assembly (e.g., GPSLocatorAwakePatch)
         HarmonyPatchAll = true;
     }
 
-    // Step 16: Initialize the mod and its settings
+    // Step 15: Initialize the mod and its settings
     protected override void OnInitializeMod()
     {
-        // Step 16.1: Initialize configuration settings
+        // Step 15.1: Initialize configuration settings
+        RLog.Debug("Initializing BlankGPS config...");
         Config.Init();
+        RLog.Debug("BlankGPS config initialized");
 
-        // Step 16.2: Register the save manager for BlankGPS
+        // Step 15.2: Register the save manager
         var saveManager = new BlankGPSSaveManager();
         SonsSaveTools.Register(saveManager);
+        RLog.Debug("Registered BlankGPSSaveManager");
     }
 
     protected override void OnSdkInitialized()
     {
-        // Step 16.2: Create the in-game settings UI and initialize the BlankGPS UI
+        // Step 15.3: Create the in-game settings UI and initialize the BlankGPS UI
+        RLog.Debug("Creating BlankGPS UI...");
         BlankGPSUi.Create();
+        RLog.Debug("BlankGPS UI created");
         SettingsRegistry.CreateSettings(this, null, typeof(Config));
     }
 
     protected override void OnGameStart()
     {
         // This is called once the player spawns in the world and gains control.
-        // Step 17: Add ProximityTrigger to managed markers in the Markers dictionary
+        // Step 16: Add ProximityTrigger to managed markers in the Markers dictionary
         int disabledCount = 0;
         int caveTriggerCount = 0;
         int teamBTriggerCount = 0;
@@ -499,7 +483,7 @@ public class BlankGPS : SonsMod
             }
         }
 
-        // Step 18: Log the summary of added triggers and processed markers
+        // Step 17: Log the summary of added triggers and processed markers
         if (caveTriggerCount > 0)
             RLog.Msg($"Added {caveTriggerCount} ProximityTriggers with SphereColliders for cave markers");
         if (teamBTriggerCount > 0)
@@ -508,16 +492,18 @@ public class BlankGPS : SonsMod
             RLog.Msg($"Added {bunkerTriggerCount} ProximityTriggers with SphereColliders for bunker markers");
         RLog.Msg($"Disabled {disabledCount} markers at game start");
         RLog.Msg($"Processed {Markers.Count} out of {DefaultMarkers.Count} targeted GPSLocators");
+        RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 }
 
-// Step 19: Harmony patch for GPSLocator.OnEnable
+// Step 18: Harmony patch for GPSLocator.OnEnable
 // This patch runs custom code whenever a GPSLocator component is enabled in the game
 // GPSLocator components control GPS markers (e.g., CaveAEntranceGPS), and OnEnable is called when the marker is loaded
 [HarmonyPatch(typeof(GPSLocator), "OnEnable")]
 public class GPSLocatorAwakePatch
 {
-    // Step 20: Find all markers in our list that match the GameObject name
+    // Step 19: Find all markers in our list that match the GameObject name
     // We use LINQ’s Where to get all marker tuples with a matching name
     // This ensures we check all entries, not just the ones for GPSLocatorPickup with different positions
     [HarmonyPostfix]
@@ -526,7 +512,7 @@ public class GPSLocatorAwakePatch
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
-        // Step 21: Iterate over all matching markers to find the correct one
+        // Step 20: Iterate over all matching markers to find the correct one
         foreach (var matchingMarker in matchingMarkers)
         {
             bool matches = false;
@@ -562,18 +548,23 @@ public class GPSLocatorAwakePatch
 
             if (matches)
             {
-                // Step 22: Determine if the marker type should be managed based on config settings
+                // Step 21: Determine if the marker type should be managed based on config settings
                 bool shouldDisable = BlankGPS.IsMarkerTypeManaged(__instance.gameObject.name);
 
-                // Step 23: Check for a saved state in _loadedMarkerStates only if the marker type is managed
+                // Step 22: Check for a saved state in _loadedMarkerStates only if the marker type is managed
                 string key = matchingMarker.gameObjectName == "GPSLocatorPickup" ? $"{__instance.gameObject.name}_{matchingMarker.position}" : __instance.gameObject.name;
                 if (shouldDisable && BlankGPS._loadedMarkerStates.TryGetValue(key, out bool loadedIsDisabled))
                 {
                     shouldDisable = loadedIsDisabled;
                 }
-                RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}");
+                else if (shouldDisable)
+                {
+                    // Default to disabled for managed markers with no saved state
+                    shouldDisable = true;
+                }
+                RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}, _loadedMarkerStates={(BlankGPS._loadedMarkerStates.ContainsKey(key) ? BlankGPS._loadedMarkerStates[key].ToString() : "none")}, _originalMarkerStates={(BlankGPS._originalMarkerStates.ContainsKey(key) ? BlankGPS._originalMarkerStates[key].ToString() : "none")}");
 
-                // Step 24: Apply the appropriate state to the marker
+                // Step 23: Apply the appropriate state to the marker
                 if (shouldDisable)
                 {
                     BlankGPS.MarkerDisable(__instance);
@@ -583,7 +574,7 @@ public class GPSLocatorAwakePatch
                     BlankGPS.MarkerEnable(__instance, matchingMarker.iconScale);
                 }
 
-                // Step 25: Add the GPSLocator to the dictionary of managed markers
+                // Step 24: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
                 GPSLocatorState state = new GPSLocatorState
                 {
@@ -594,10 +585,12 @@ public class GPSLocatorAwakePatch
                 };
 
                 BlankGPS.Markers[key] = state;
+                RLog.Debug($"Postfix set Markers[{key}].IsDisabled={state.IsDisabled}");
 
                 // Break after processing the marker, as we’ve found the correct match
                 break;
             }
         }
+        RLog.Debug($"Markers after Postfix: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 }
