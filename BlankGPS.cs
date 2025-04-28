@@ -38,20 +38,20 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
             if (BlankGPS.IsMarkerTypeManaged(marker.Key))
             {
                 saveData.MarkerStates[marker.Key] = marker.Value.IsDisabled;
-                RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
+                //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
             }
         }
         RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
-        RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         return saveData;
     }
 
     public void Load(SaveData obj)
     {
         RLog.Debug("Loading BlankGPS marker states...");
-        RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         BlankGPS._originalMarkerStates.Clear();
-        RLog.Debug("Cleared _originalMarkerStates");
+        //RLog.Debug("Cleared _originalMarkerStates");
 
         if (obj == null || obj.MarkerStates == null)
         {
@@ -63,7 +63,8 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         foreach (var savedState in obj.MarkerStates)
         {
             BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
-            RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+            //RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+
             // Apply saved state only if the marker type is managed (Scenario 2: Load After Postfix)
             if (BlankGPS.IsMarkerTypeManaged(savedState.Key) && BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
             {
@@ -81,7 +82,7 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
                     }
                     BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
                 }
-                RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
+                //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
             }
         }
         RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
@@ -255,8 +256,8 @@ public class BlankGPS : SonsMod
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
         RLog.Debug($"UpdateMarkerStatesForType({typeIdentifier}, shouldManage={shouldManage}) called");
-        RLog.Debug($"_originalMarkerStates before update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-        RLog.Debug($"Markers before update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+        //RLog.Debug($"_originalMarkerStates before update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"Markers before update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
 
         // Step 11.1: Iterate over markers and update their state and triggers
         int affectedCount = 0;
@@ -288,7 +289,7 @@ public class BlankGPS : SonsMod
                     // Step 11.3: Restore original discovery state or keep discovered
                     bool originalIsDisabled = _originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true;
                     state.IsDisabled = originalIsDisabled;
-                    RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
+                    //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
                     if (state.IsDisabled)
                     {
                         MarkerDisable(state.Locator);
@@ -320,7 +321,7 @@ public class BlankGPS : SonsMod
                     _originalMarkerStates[markerName] = state.IsDisabled;
                     state.IsDisabled = false;
                     MarkerEnable(state.Locator, state.OriginalIconScale);
-                    RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {markerName} IsDisabled={_originalMarkerStates[markerName]}, Set IsDisabled={state.IsDisabled}");
+                    //RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {markerName} IsDisabled={_originalMarkerStates[markerName]}, Set IsDisabled={state.IsDisabled}");
                     affectedCount++;
 
                     // Step 11.6: Destroy the trigger and collider if they exist
@@ -348,8 +349,8 @@ public class BlankGPS : SonsMod
             RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for {typeName} markers");
         }
 
-        RLog.Debug($"_originalMarkerStates after update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-        RLog.Debug($"Markers after update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+        //RLog.Debug($"_originalMarkerStates after update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"Markers after update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
@@ -415,7 +416,7 @@ public class BlankGPS : SonsMod
 
         // Step 13.1: Log the number of markers to confirm the list is initialized
         RLog.Msg($"Initialized {_defaultMarkers.Count} markers to disable");
-        RLog.Debug($"_originalMarkerStates on init: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"_originalMarkerStates on init: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
 
         // Step 14: Enable Harmony patching for our mod
         // This tells RedLoader to apply all Harmony patches defined in our assembly (e.g., GPSLocatorAwakePatch)
@@ -492,8 +493,8 @@ public class BlankGPS : SonsMod
             RLog.Msg($"Added {bunkerTriggerCount} ProximityTriggers with SphereColliders for bunker markers");
         RLog.Msg($"Disabled {disabledCount} markers at game start");
         RLog.Msg($"Processed {Markers.Count} out of {DefaultMarkers.Count} targeted GPSLocators");
-        RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-        RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+        //RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 }
 
@@ -562,7 +563,7 @@ public class GPSLocatorAwakePatch
                     // Default to disabled for managed markers with no saved state
                     shouldDisable = true;
                 }
-                RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}, _loadedMarkerStates={(BlankGPS._loadedMarkerStates.ContainsKey(key) ? BlankGPS._loadedMarkerStates[key].ToString() : "none")}, _originalMarkerStates={(BlankGPS._originalMarkerStates.ContainsKey(key) ? BlankGPS._originalMarkerStates[key].ToString() : "none")}");
+                //RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}, _loadedMarkerStates={(BlankGPS._loadedMarkerStates.ContainsKey(key) ? BlankGPS._loadedMarkerStates[key].ToString() : "none")}, _originalMarkerStates={(BlankGPS._originalMarkerStates.ContainsKey(key) ? BlankGPS._originalMarkerStates[key].ToString() : "none")}");
 
                 // Step 23: Apply the appropriate state to the marker
                 if (shouldDisable)
@@ -585,12 +586,12 @@ public class GPSLocatorAwakePatch
                 };
 
                 BlankGPS.Markers[key] = state;
-                RLog.Debug($"Postfix set Markers[{key}].IsDisabled={state.IsDisabled}");
+                //RLog.Debug($"Postfix set Markers[{key}].IsDisabled={state.IsDisabled}");
 
                 // Break after processing the marker, as we’ve found the correct match
                 break;
             }
         }
-        RLog.Debug($"Markers after Postfix: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+        //RLog.Debug($"Markers after Postfix: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 }
