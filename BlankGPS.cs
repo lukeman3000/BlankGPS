@@ -210,6 +210,9 @@ public class BlankGPS : SonsMod
     // Stores loaded marker states for Postfix to check (Scenario 1: Load Before Postfix)
     public static Dictionary<string, bool> _loadedMarkerStates { get; private set; } = new Dictionary<string, bool>();
 
+    // Stores original marker states to preserve discovery status when toggling management
+    private static Dictionary<string, bool> _originalMarkerStates = new Dictionary<string, bool>();
+
     // Step 7: Sets the icon scale of a marker and refreshes the GPS
     private static void SetMarkerIconScale(GPSLocator locator, float iconScale)
     {
@@ -271,10 +274,24 @@ public class BlankGPS : SonsMod
             {
                 if (shouldManage)
                 {
-                    // Step 11.3: Disable the marker if its type should now be managed
-                    MarkerDisable(state.Locator);
-                    state.IsDisabled = true;
-                    affectedCount++;
+                    // Step 11.3: Restore original discovery state or keep discovered
+                    bool originalIsDisabled = _originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true;
+                    state.IsDisabled = originalIsDisabled;
+                    RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
+                    if (state.IsDisabled)
+                    {
+                        MarkerDisable(state.Locator);
+                        affectedCount++;
+                    }
+                    else
+                    {
+                        // Keep discovered markers enabled
+                        if (markerName.Contains("Bunker"))
+                        {
+                            state.Locator.Enable(true);
+                        }
+                        MarkerEnable(state.Locator, state.OriginalIconScale);
+                    }
 
                     // Step 11.4: Create a trigger and collider for the marker if it doesn't already have one
                     if (state.TriggerObject == null)
@@ -288,9 +305,11 @@ public class BlankGPS : SonsMod
                 }
                 else
                 {
-                    // Step 11.5: Re-enable the marker if its type should no longer be managed
-                    MarkerEnable(state.Locator, state.OriginalIconScale);
+                    // Step 11.5: Save discovery state and re-enable marker
+                    _originalMarkerStates[markerName] = state.IsDisabled;
                     state.IsDisabled = false;
+                    MarkerEnable(state.Locator, state.OriginalIconScale);
+                    RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {markerName} IsDisabled={_originalMarkerStates[markerName]}, Set IsDisabled={state.IsDisabled}");
                     affectedCount++;
 
                     // Step 11.6: Destroy the trigger and collider if they exist
@@ -317,6 +336,42 @@ public class BlankGPS : SonsMod
             string typeName = typeIdentifier == "Cave" ? "cave" : typeIdentifier == "GPSLocatorPickup" ? "Team B" : "bunker";
             RLog.Msg($"Added {triggerCount} ProximityTriggers with SphereColliders for {typeName} markers");
         }
+
+        // Step 11.9: Refresh all markers to ensure GPS updates immediately
+        RefreshAllMarkers();
+    }
+
+    // Step 11.9: Refreshes all markers to update the GPS display
+    private static void RefreshAllMarkers()
+    {
+        foreach (var marker in Markers)
+        {
+            GPSLocatorState state = marker.Value;
+            RLog.Debug($"Refresh {marker.Key}: IsDisabled={state.IsDisabled}");
+            if (BlankGPS.IsMarkerTypeManaged(marker.Key))
+            {
+                if (state.IsDisabled)
+                {
+                    MarkerDisable(state.Locator);
+                }
+                else
+                {
+                    // Enable bunker markers for discoveries
+                    if (marker.Key.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(true);
+                    }
+                    MarkerEnable(state.Locator, state.OriginalIconScale);
+                }
+            }
+            else
+            {
+                // Reset unmanaged markers to base game state
+                MarkerEnable(state.Locator, state.OriginalIconScale);
+                state.IsDisabled = false;
+            }
+        }
+        RLog.Debug("Refreshed all GPS markers");
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
@@ -516,6 +571,7 @@ public class GPSLocatorAwakePatch
                 {
                     shouldDisable = loadedIsDisabled;
                 }
+                RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}");
 
                 // Step 24: Apply the appropriate state to the marker
                 if (shouldDisable)
