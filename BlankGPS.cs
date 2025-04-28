@@ -35,11 +35,12 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         SaveData saveData = new SaveData();
         foreach (var marker in BlankGPS.Markers)
         {
-            if (BlankGPS.IsMarkerTypeManaged(marker.Key))
-            {
-                saveData.MarkerStates[marker.Key] = marker.Value.IsDisabled;
-                //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={marker.Value.IsDisabled}");
-            }
+            // Save discovery state for unmanaged markers, runtime state for managed
+            bool isDisabled = BlankGPS.IsMarkerTypeManaged(marker.Key)
+                ? marker.Value.IsDisabled
+                : (BlankGPS._originalMarkerStates.ContainsKey(marker.Key) ? BlankGPS._originalMarkerStates[marker.Key] : true);
+            saveData.MarkerStates[marker.Key] = isDisabled;
+            //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={isDisabled}");
         }
         RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
         //RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
@@ -64,9 +65,8 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         {
             BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
             //RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
-
-            // Apply saved state only if the marker type is managed (Scenario 2: Load After Postfix)
-            if (BlankGPS.IsMarkerTypeManaged(savedState.Key) && BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
+            // Apply saved state to Markers
+            if (BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
             {
                 state.IsDisabled = savedState.Value;
                 if (state.IsDisabled)
@@ -286,9 +286,9 @@ public class BlankGPS : SonsMod
             {
                 if (shouldManage)
                 {
-                    // Step 11.3: Restore original discovery state or keep discovered
-                    bool originalIsDisabled = _originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true;
-                    state.IsDisabled = originalIsDisabled;
+                    // Step 11.3: Restore saved state if available, else original or default disabled
+                    bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(markerName) ? BlankGPS._loadedMarkerStates[markerName] : (_originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true);
+                    state.IsDisabled = savedIsDisabled;
                     //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
                     if (state.IsDisabled)
                     {
