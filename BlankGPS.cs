@@ -291,12 +291,6 @@ public class BlankGPS : SonsMod
                     bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(markerName) ? BlankGPS._loadedMarkerStates[markerName] : (_originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true);
                     state.IsDisabled = savedIsDisabled;
                     //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
-                    
-                    // Always enable GPSLocator for bunkers when managed
-                    if (markerName.Contains("Bunker"))
-                    {
-                        state.Locator.Enable(true);
-                    }
 
                     if (state.IsDisabled)
                     {
@@ -318,15 +312,15 @@ public class BlankGPS : SonsMod
                             triggerCount++;
                         }
                     }
+
+                    // 11.5 Always enable GPSLocator for bunkers when managed
+                    if (markerName.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(true);
+                    }
                 }
                 else
                 {
-                    // Always disable GPSLocator for bunkers when unmanaged
-                    if (markerName.Contains("Bunker"))
-                    {
-                        state.Locator.Enable(false);
-                    }
-
                     // Step 11.5: Save discovery state and re-enable marker
                     _originalMarkerStates[markerName] = state.IsDisabled;
                     state.IsDisabled = false;
@@ -339,6 +333,12 @@ public class BlankGPS : SonsMod
                     {
                         UnityEngine.Object.Destroy(state.TriggerObject);
                         state.TriggerObject = null;
+                    }
+
+                    // 11.7 Always disable GPSLocator for bunkers when unmanaged
+                    if (markerName.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(false);
                     }
                 }
             }
@@ -603,6 +603,20 @@ public class GPSLocatorAwakePatch
                 };
 
                 BlankGPS.Markers[key] = state;
+
+                // Step 25: Handle bunker enable/disable
+                if (key.Contains("Bunker"))
+                {
+                    if (BlankGPS.IsMarkerTypeManaged(key))
+                    {
+                        __instance.Enable(true);  // Enable for managed bunkers
+                    }
+                    else
+                    {
+                        __instance.Enable(false); // Disable for unmanaged bunkers
+                    }
+                }
+
                 //RLog.Debug($"Postfix set Markers[{key}].IsDisabled={state.IsDisabled}");
 
                 // Break after processing the marker, as we’ve found the correct match
