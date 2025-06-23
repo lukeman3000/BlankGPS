@@ -291,6 +291,13 @@ public class BlankGPS : SonsMod
                     bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(markerName) ? BlankGPS._loadedMarkerStates[markerName] : (_originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true);
                     state.IsDisabled = savedIsDisabled;
                     //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
+                    
+                    // Always enable GPSLocator for bunkers when managed
+                    if (markerName.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(true);
+                    }
+
                     if (state.IsDisabled)
                     {
                         MarkerDisable(state.Locator);
@@ -299,10 +306,6 @@ public class BlankGPS : SonsMod
                     else
                     {
                         // Keep discovered markers enabled
-                        if (markerName.Contains("Bunker"))
-                        {
-                            state.Locator.Enable(true);
-                        }
                         MarkerEnable(state.Locator, state.OriginalIconScale);
                     }
 
@@ -318,6 +321,12 @@ public class BlankGPS : SonsMod
                 }
                 else
                 {
+                    // Always disable GPSLocator for bunkers when unmanaged
+                    if (markerName.Contains("Bunker"))
+                    {
+                        state.Locator.Enable(false);
+                    }
+
                     // Step 11.5: Save discovery state and re-enable marker
                     _originalMarkerStates[markerName] = state.IsDisabled;
                     state.IsDisabled = false;
