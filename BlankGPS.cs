@@ -70,19 +70,25 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
             if (BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
             {
                 state.IsDisabled = savedState.Value;
+
+                // Always ensure GPSLocator enabled/disabled state matches management config
+                if (savedState.Key.Contains("Bunker"))
+                {
+                    if (BlankGPS.IsMarkerTypeManaged(savedState.Key))
+                        state.Locator.Enable(true);
+                    else
+                        state.Locator.Enable(false);
+                }
+
                 if (state.IsDisabled)
                 {
                     BlankGPS.MarkerDisable(state.Locator);
                 }
                 else
                 {
-                    // Enable bunker markers explicitly for saved discoveries
-                    if (savedState.Key.Contains("Bunker"))
-                    {
-                        state.Locator.Enable(true);
-                    }
                     BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
                 }
+
                 //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
             }
         }
