@@ -50,9 +50,10 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
     public void Load(SaveData obj)
     {
         RLog.Debug("Loading BlankGPS marker states...");
-        //RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+       
         BlankGPS._originalMarkerStates.Clear();
-        //RLog.Debug("Cleared _originalMarkerStates");
+        RLog.Debug("Cleared _originalMarkerStates");
 
         if (obj == null || obj.MarkerStates == null)
         {
@@ -444,6 +445,13 @@ public class BlankGPS : SonsMod
         BlankGPSUi.Create();
         RLog.Debug("BlankGPS UI created");
         SettingsRegistry.CreateSettings(this, null, typeof(Config));
+    }
+
+    // Step 15.4: Clear _loadedMarkerStates when a new scene is loaded
+    public override void OnSceneWasLoaded(int buildIndex, string sceneName)
+    {
+        RLog.Debug($"Clearing _loadedMarkerStates on scene load (Scene: {sceneName}, BuildIndex: {buildIndex})...");
+        _loadedMarkerStates.Clear();
     }
 
     protected override void OnGameStart()
