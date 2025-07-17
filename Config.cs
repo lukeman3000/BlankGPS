@@ -112,5 +112,8 @@ public static class Config
             BlankGPS.UpdateMarkerStatesForType("Bunker", ManageBunkers.Value);
             _lastManageBunkers = ManageBunkers.Value;
         }
+
+        // Update all proximity beep states to reflect the new config
+        BlankGPS.UpdateProximityBeepStates();
     }
 }

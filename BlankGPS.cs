@@ -572,6 +572,9 @@ public class BlankGPS : SonsMod
         RLog.Msg($"Processed {Markers.Count} out of {DefaultMarkers.Count} targeted GPSLocators");
         //RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         //RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+
+        // Step 17.1: Update all proximity beep states according to current config
+        UpdateProximityBeepStates();
     }
 }
 
