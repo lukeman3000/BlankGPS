@@ -182,6 +182,9 @@ public class ProximityTrigger : MonoBehaviour
                         BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
                         state.IsDisabled = false;
                         RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
+
+                        // Immediately update beep states after discovery
+                        BlankGPS.UpdateProximityBeepStates();
                     }
                 }
                 else
