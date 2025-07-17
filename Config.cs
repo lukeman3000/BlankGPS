@@ -13,6 +13,9 @@ public static class Config
     // Proximity radius in units
     public static ConfigEntry<float> ProximityRadius { get; private set; }
 
+    // Last proximity radius, used to detect changes when the user adjusts the slider (for live trigger updates)
+    private static float _lastProximityRadius;
+
     // Toggle for proximity beep feature
     public static ConfigEntry<bool> ProximityBeep { get; private set; }
 
@@ -87,6 +90,7 @@ public static class Config
         _lastManageCaves = ManageCaves.Value;
         _lastManageTeamB = ManageTeamB.Value;
         _lastManageBunkers = ManageBunkers.Value;
+        _lastProximityRadius = ProximityRadius.Value;
     }
 
     // Called when the settings UI is closed to update marker states based on config changes
@@ -111,6 +115,14 @@ public static class Config
         {
             BlankGPS.UpdateMarkerStatesForType("Bunker", ManageBunkers.Value);
             _lastManageBunkers = ManageBunkers.Value;
+        }
+
+        // Check for proximity_radius changes
+        // If the proximity radius slider changed, remake all triggers so collider radii match current settings
+        if (_lastProximityRadius != ProximityRadius.Value)
+        {
+            BlankGPS.RecreateAllProximityTriggers();
+            _lastProximityRadius = ProximityRadius.Value;
         }
 
         // Update all proximity beep states to reflect the new config

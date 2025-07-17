@@ -377,12 +377,6 @@ public class BlankGPS : SonsMod
     {
         RLog.Debug("UpdateProximityBeepStates called.");
 
-        if (!Config.ProximityBeep.Value)
-        {
-            RLog.Debug("ProximityBeep is disabled in config. Exiting without updating markers.");
-            return;
-        }
-
         int totalMarkers = 0;
         int undiscoveredWithBeep = 0;
         int discoveredNoBeep = 0;
@@ -392,7 +386,6 @@ public class BlankGPS : SonsMod
         {
             string markerName = marker.Key;
             GPSLocatorState state = marker.Value;
-            // Defensive fallback: Skip if state or locator is missing
             if (state == null || state.Locator == null)
             {
                 RLog.Debug($"Skipped marker '{markerName}' (state or locator missing)");
@@ -403,19 +396,27 @@ public class BlankGPS : SonsMod
             GPSLocator locator = state.Locator;
             locator._beepMaxRange = Config.ProximityBeepRadius.Value;
 
-            if (!state.IsDisabled)
+            if (!Config.ProximityBeep.Value)
             {
-                // Marker is discovered, disable proximity beep
+                // Proximity beep disabled: ensure beeping is off for all markers
                 locator._shouldBeepWhenInRange = false;
+                RLog.Debug($"Marker '{markerName}': Proximity beep OFF globally -> beep disabled");
                 discoveredNoBeep++;
-                RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
             }
             else
             {
-                // Marker is undiscovered, enable proximity beep
-                locator._shouldBeepWhenInRange = true;
-                undiscoveredWithBeep++;
-                RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
+                if (!state.IsDisabled)
+                {
+                    locator._shouldBeepWhenInRange = false;
+                    discoveredNoBeep++;
+                    RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
+                }
+                else
+                {
+                    locator._shouldBeepWhenInRange = true;
+                    undiscoveredWithBeep++;
+                    RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
+                }
             }
             totalMarkers++;
         }
@@ -454,6 +455,28 @@ public class BlankGPS : SonsMod
         }
 
         return triggerObject;
+    }
+
+    // Step 12.6: Recreate all proximity triggers for managed markers
+    // Destroys existing proximity triggers and creates new ones with the current ProximityRadius value.
+    // Called when the proximity radius slider is changed, to ensure triggers use updated settings.
+    public static void RecreateAllProximityTriggers()
+    {
+        foreach (var marker in Markers)
+        {
+            var state = marker.Value;
+            // Destroy existing trigger if present
+            if (state.TriggerObject != null)
+            {
+                UnityEngine.Object.Destroy(state.TriggerObject);
+                state.TriggerObject = null;
+            }
+            // Only recreate trigger if marker type is managed and ProximityEnabled
+            if (IsMarkerTypeManaged(marker.Key) && Config.ProximityEnabled.Value)
+            {
+                state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
+            }
+        }
     }
 
     public BlankGPS()
