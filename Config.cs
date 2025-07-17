@@ -13,6 +13,12 @@ public static class Config
     // Proximity radius in units
     public static ConfigEntry<float> ProximityRadius { get; private set; }
 
+    // Toggle for proximity beep feature
+    public static ConfigEntry<bool> ProximityBeep { get; private set; }
+
+    // Proximity beep radius in units
+    public static ConfigEntry<float> ProximityBeepRadius { get; private set; }
+
     // Toggle for managing cave entrance markers
     public static ConfigEntry<bool> ManageCaves { get; private set; }
 
@@ -46,6 +52,18 @@ public static class Config
             10.0f,
             "Proximity Radius",
             "Distance (in units) at which markers enable when approached.");
+
+        ProximityBeep = Category.CreateEntry(
+            "proximity_beep",
+            true,
+            "Proximity Beep",
+            "Enable proximity-based beep for undiscovered markers.");
+
+        ProximityBeepRadius = Category.CreateEntry(
+            "proximity_beep_radius",
+            100.0f,
+            "Proximity Beep Radius",
+            "Distance (in units) at which the proximity beep can be heard from any given undiscovered marker.");
 
         ManageCaves = Category.CreateEntry(
             "manage_caves",
