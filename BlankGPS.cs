@@ -367,6 +367,36 @@ public class BlankGPS : SonsMod
 
         //RLog.Debug($"_originalMarkerStates after update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         //RLog.Debug($"Markers after update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+
+    }
+
+    public static void UpdateProximityBeepStates()
+    {
+        if (!Config.ProximityBeep.Value)
+            return;
+
+        foreach (var marker in Markers)
+        {
+            string markerName = marker.Key;
+            GPSLocatorState state = marker.Value;
+            // Defensive fallback: Skip if state or locator is missing
+            if (state == null || state.Locator == null)
+                continue;
+
+            GPSLocator locator = state.Locator;
+            locator._beepMaxRange = Config.ProximityBeepRadius.Value;
+
+            if (!state.IsDisabled)
+            {
+                // Marker is discovered, disable proximity beep
+                locator._shouldBeepWhenInRange = false;
+            }
+            else
+            {
+                // Marker is undiscovered, enable proximity beep
+                locator._shouldBeepWhenInRange = true;
+            }
+        }
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
