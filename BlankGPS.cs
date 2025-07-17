@@ -370,10 +370,23 @@ public class BlankGPS : SonsMod
 
     }
 
+    // Step 11.9: Updates all GPS locators' proximity beep state and beep radius based on current config.
+    // Enables beeping for undiscovered, managed markers and sets beep range as specified by the user.
+    // Called on game start and whenever Proximity Beep settings change.
     public static void UpdateProximityBeepStates()
     {
+        RLog.Debug("UpdateProximityBeepStates called.");
+
         if (!Config.ProximityBeep.Value)
+        {
+            RLog.Debug("ProximityBeep is disabled in config. Exiting without updating markers.");
             return;
+        }
+
+        int totalMarkers = 0;
+        int undiscoveredWithBeep = 0;
+        int discoveredNoBeep = 0;
+        int skipped = 0;
 
         foreach (var marker in Markers)
         {
@@ -381,7 +394,11 @@ public class BlankGPS : SonsMod
             GPSLocatorState state = marker.Value;
             // Defensive fallback: Skip if state or locator is missing
             if (state == null || state.Locator == null)
+            {
+                RLog.Debug($"Skipped marker '{markerName}' (state or locator missing)");
+                skipped++;
                 continue;
+            }
 
             GPSLocator locator = state.Locator;
             locator._beepMaxRange = Config.ProximityBeepRadius.Value;
@@ -390,13 +407,20 @@ public class BlankGPS : SonsMod
             {
                 // Marker is discovered, disable proximity beep
                 locator._shouldBeepWhenInRange = false;
+                discoveredNoBeep++;
+                RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
             }
             else
             {
                 // Marker is undiscovered, enable proximity beep
                 locator._shouldBeepWhenInRange = true;
+                undiscoveredWithBeep++;
+                RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
             }
+            totalMarkers++;
         }
+
+        RLog.Debug($"Proximity beep update complete. Markers processed: {totalMarkers}, Beep enabled for: {undiscoveredWithBeep}, Beep disabled for: {discoveredNoBeep}, Skipped: {skipped}");
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
