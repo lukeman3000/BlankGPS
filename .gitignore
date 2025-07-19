@@ -1,5 +1,6 @@
 bin/
 obj/
+ReleaseBuild/
 *.csproj.user
 .run/
 .vs/
