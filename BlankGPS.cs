@@ -397,7 +397,8 @@ public class BlankGPS : SonsMod
             }
 
             GPSLocator locator = state.Locator;
-            locator._beepMaxRange = Config.ProximityBeepRadius.Value;
+            float safeProximityBeepRadius = Mathf.Clamp(Config.ProximityBeepRadius.Value, 1.0f, 500.0f);
+            locator._beepMaxRange = safeProximityBeepRadius;
 
             if (!Config.ProximityBeep.Value)
             {
@@ -445,7 +446,8 @@ public class BlankGPS : SonsMod
         }
 
         // Step 12.4: Configure the SphereCollider
-        collider.radius = Config.ProximityRadius.Value;
+        float safeProximityRadius = Mathf.Clamp(Config.ProximityRadius.Value, 1.0f, 20.0f);
+        collider.radius = safeProximityRadius;
         collider.isTrigger = true;
 
         // Step 12.5: Attach the ProximityTrigger component to triggerObject

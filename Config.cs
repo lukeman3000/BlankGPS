@@ -55,6 +55,7 @@ public static class Config
             10.0f,
             "Proximity Radius",
             "Distance (in units) at which markers enable when approached.");
+        ProximityRadius.SetRange(1.0f, 10.0f);
 
         ProximityBeep = Category.CreateEntry(
             "proximity_beep",
@@ -67,7 +68,7 @@ public static class Config
             250.0f,
             "Proximity Beep Radius",
             "Distance (in units) at which the proximity beep can be heard from any given undiscovered marker.");
-        ProximityBeepRadius.SetRange(0.0f, 250.0f);
+        ProximityBeepRadius.SetRange(1.0f, 250.0f);
 
         ManageCaves = Category.CreateEntry(
             "manage_caves",
