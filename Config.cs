@@ -31,6 +31,9 @@ public static class Config
     // Toggle for managing bunker entrance markers
     public static ConfigEntry<bool> ManageBunkers { get; private set; }
 
+    // Toggle for icon pulse
+    public static ConfigEntry<bool> DisableIconPulse { get; private set; }
+
     // Auto populated after calling SettingsRegistry.CreateSettings...
     private static SettingsRegistry.SettingsEntry _settingsEntry;
 
@@ -88,6 +91,12 @@ public static class Config
             "Manage Bunkers",
             "Allow BlankGPS to manage bunker entrance markers (hides them until approached if enabled).");
 
+        DisableIconPulse = Category.CreateEntry(
+            "disable_icon_pulse",
+            true,
+            "Disable Bunker Icon Pulse",
+            "Disable icon pulse for bunker markers.");
+
         // Initialize previous values to match defaults
         _lastManageCaves = ManageCaves.Value;
         _lastManageTeamB = ManageTeamB.Value;
@@ -129,5 +138,8 @@ public static class Config
 
         // Update all proximity beep states to reflect the new config
         BlankGPS.UpdateProximityBeepStates();
+
+        // Update all icon pulse states to reflect the new config
+        BlankGPS.UpdateIconPulseState();
     }
 }

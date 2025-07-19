@@ -1,11 +1,12 @@
-﻿using SonsSdk;
+﻿using HarmonyLib;
 using RedLoader;
-using HarmonyLib;
-using UnityEngine;
+using Sons.Gameplay.GPS;
+using SonsSdk;
+using SUI;
 using System.Collections.Generic;
 using System.Linq; // Added for string.Join
-using Sons.Gameplay.GPS;
-using SUI;
+using UnityEngine;
+using UnityEngine.PlayerLoop;
 
 namespace BlankGPS;
 
@@ -373,7 +374,7 @@ public class BlankGPS : SonsMod
 
     }
 
-    // Step 11.9: Updates all GPS locators' proximity beep state and beep radius based on current config.
+    // Updates all GPS locators' proximity beep state and beep radius based on current config.
     // Enables beeping for undiscovered, managed markers and sets beep range as specified by the user.
     // Called on game start and whenever Proximity Beep settings change.
     public static void UpdateProximityBeepStates()
@@ -426,6 +427,24 @@ public class BlankGPS : SonsMod
         }
 
         RLog.Debug($"Proximity beep update complete. Markers processed: {totalMarkers}, Beep enabled for: {undiscoveredWithBeep}, Beep disabled for: {discoveredNoBeep}, Skipped: {skipped}");
+    }
+
+    // Updates all GPS locators' proximity beep state and beep radius based on current config.
+    public static void UpdateIconPulseState()
+    {
+        foreach (var marker in BlankGPS.Markers)
+        {
+            string markerName = marker.Key;
+            GPSLocator locator = marker.Value.Locator;
+            if (locator == null) continue;
+
+            // Only affect bunker markers
+            if (markerName.Contains("Bunker"))
+            {
+                locator._pulseIcon = !Config.DisableIconPulse.Value;
+                locator.ForceRefresh(); // If available, ensures state applies visually
+            }
+        }
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
@@ -603,6 +622,10 @@ public class BlankGPS : SonsMod
 
         // Step 17.1: Update all proximity beep states according to current config
         UpdateProximityBeepStates();
+
+        // Step 17.2 Update all icon pulse states according to current config
+        UpdateIconPulseState();
+
     }
 }
 
