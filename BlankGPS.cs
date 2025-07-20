@@ -832,10 +832,11 @@ public class GPSLocatorPickupOnDestroyPatch
         }
     }
 
-    // Example simple parser—adjust if your format differs (remove/replace whitespace as needed).
+    // Parses a Vector3 from a key substring in the format "(x, y, z)".
+    // Adjust only if your key format changes (e.g., whitespace or decimal precision).
     private static Vector3 ParseVector3(string s)
     {
-        // Remove parentheses
+        // Remove leading '(' and trailing ')' from the string, e.g., "(1.0, 2.0, 3.0)" -> "1.0, 2.0, 3.0"
         s = s.Trim('(', ')');
         var parts = s.Split(',');
         if (parts.Length != 3)
