@@ -247,6 +247,12 @@ public class BlankGPS : SonsMod
     public static void MarkerEnable(GPSLocator locator, float iconScale)
     {
         SetMarkerIconScale(locator, iconScale);
+
+        // Restore proximity beep for Team B markers when enabling them
+        if (locator.gameObject.name == "GPSLocatorPickup")
+        {
+            locator._shouldBeepWhenInRange = true;
+        }
     }
 
     // Step 9: Disables a marker by setting its icon scale to 0 and refreshing the GPS
@@ -412,6 +418,13 @@ public class BlankGPS : SonsMod
         {
             string markerName = marker.Key;
             GPSLocatorState state = marker.Value;
+
+            // Only affect managed markers
+            if (!IsMarkerTypeManaged(markerName))
+            {
+                continue;
+            }
+
             if (state == null || state.Locator == null)
             {
                 RLog.Debug($"Skipped marker '{markerName}' (state or locator missing)");
