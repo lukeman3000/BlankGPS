@@ -654,6 +654,10 @@ public class BlankGPS : SonsMod
         // Step 17.2 Update all icon pulse states according to current config
         UpdateIconPulseState();
 
+        // Apply marker states based on config
+        UpdateMarkerStatesForType("Cave", Config.ManageCaves.Value);
+        UpdateMarkerStatesForType("GPSLocatorPickup", Config.ManageTeamB.Value);
+        UpdateMarkerStatesForType("Bunker", Config.ManageBunkers.Value);
     }
 }
 
@@ -669,6 +673,10 @@ public class GPSLocatorAwakePatch
     [HarmonyPostfix]
     public static void Postfix(GPSLocator __instance)
     {
+        // Defensive guard: skip all logic if this is a held GPS tag
+        if (__instance.gameObject.name == "GPSLocatorHeld")
+            return;
+
         var matchingMarkers = BlankGPS.DefaultMarkers.Where(marker => marker.gameObjectName == __instance.gameObject.name);
         if (!matchingMarkers.Any()) return;
 
@@ -725,14 +733,14 @@ public class GPSLocatorAwakePatch
                 //RLog.Debug($"Postfix {key}: shouldDisable={shouldDisable}, _loadedMarkerStates={(BlankGPS._loadedMarkerStates.ContainsKey(key) ? BlankGPS._loadedMarkerStates[key].ToString() : "none")}, _originalMarkerStates={(BlankGPS._originalMarkerStates.ContainsKey(key) ? BlankGPS._originalMarkerStates[key].ToString() : "none")}");
 
                 // Step 23: Apply the appropriate state to the marker
-                if (shouldDisable)
-                {
-                    BlankGPS.MarkerDisable(__instance);
-                }
-                else
-                {
-                    BlankGPS.MarkerEnable(__instance, matchingMarker.iconScale);
-                }
+                //if (shouldDisable)
+                //{
+                //    BlankGPS.MarkerDisable(__instance);
+                //}
+                //else
+                //{
+                //    BlankGPS.MarkerEnable(__instance, matchingMarker.iconScale);
+                //}
 
                 // Step 24: Add the GPSLocator to the dictionary of managed markers
                 // Create a GPSLocatorState object and store it in the dictionary
@@ -747,17 +755,17 @@ public class GPSLocatorAwakePatch
                 BlankGPS.Markers[key] = state;
 
                 // Step 25: Handle bunker enable/disable
-                if (key.Contains("Bunker"))
-                {
-                    if (BlankGPS.IsMarkerTypeManaged(key))
-                    {
-                        __instance.Enable(true);  // Enable for managed bunkers
-                    }
-                    else
-                    {
-                        __instance.Enable(false); // Disable for unmanaged bunkers
-                    }
-                }
+                //if (key.Contains("Bunker"))
+                //{
+                //    if (BlankGPS.IsMarkerTypeManaged(key))
+                //    {
+                //        __instance.Enable(true);  // Enable for managed bunkers
+                //    }
+                //    else
+                //    {
+                //        __instance.Enable(false); // Disable for unmanaged bunkers
+                //    }
+                //}
 
                 //RLog.Debug($"Postfix set Markers[{key}].IsDisabled={state.IsDisabled}");
 
