@@ -32,6 +32,8 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
 
     public SaveData Save()
     {
+        BlankGPS.CleanMarkerDictionary();
+
         RLog.Debug("Saving BlankGPS marker states...");
         SaveData saveData = new SaveData();
         foreach (var marker in BlankGPS.Markers)
@@ -146,6 +148,8 @@ public class ProximityTrigger : MonoBehaviour
             Vector3 position = _gpsLocator.Position();
             if (position != Vector3.zero)
             {
+                BlankGPS.CleanMarkerDictionary();
+
                 // Find the matching position in DefaultMarkers to construct the key
                 foreach (var marker in BlankGPS.DefaultMarkers)
                 {
@@ -263,9 +267,25 @@ public class BlankGPS : SonsMod
         return false;
     }
 
+    public static void CleanMarkerDictionary()
+    {
+        var keysToRemove = Markers
+            .Where(kvp => kvp.Value == null || kvp.Value.Locator == null)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in keysToRemove)
+        {
+            Markers.Remove(key);
+            RLog.Debug($"[BlankGPS] Removed stale marker dictionary entry: {key}");
+        }
+    }
+
     // Step 11: Updates the state of all markers of a specific type based on the manage setting
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
+        CleanMarkerDictionary();
+
         RLog.Debug($"UpdateMarkerStatesForType({typeIdentifier}, shouldManage={shouldManage}) called");
         //RLog.Debug($"_originalMarkerStates before update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         //RLog.Debug($"Markers before update: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
@@ -386,6 +406,8 @@ public class BlankGPS : SonsMod
         int discoveredNoBeep = 0;
         int skipped = 0;
 
+        CleanMarkerDictionary();
+
         foreach (var marker in Markers)
         {
             string markerName = marker.Key;
@@ -432,6 +454,8 @@ public class BlankGPS : SonsMod
     // Updates all GPS locators' proximity beep state and beep radius based on current config.
     public static void UpdateIconPulseState()
     {
+        CleanMarkerDictionary();
+
         foreach (var marker in BlankGPS.Markers)
         {
             string markerName = marker.Key;
@@ -486,6 +510,8 @@ public class BlankGPS : SonsMod
     // Called when the proximity radius slider is changed, to ensure triggers use updated settings.
     public static void RecreateAllProximityTriggers()
     {
+        CleanMarkerDictionary();
+
         foreach (var marker in Markers)
         {
             var state = marker.Value;
@@ -578,6 +604,8 @@ public class BlankGPS : SonsMod
         int caveTriggerCount = 0;
         int teamBTriggerCount = 0;
         int bunkerTriggerCount = 0;
+
+        CleanMarkerDictionary();
 
         foreach (var marker in Markers)
         {
@@ -738,5 +766,75 @@ public class GPSLocatorAwakePatch
             }
         }
         //RLog.Debug($"Markers after Postfix: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+    }
+}
+
+[HarmonyPatch(typeof(GPSLocator), "OnDestroy")]
+public class GPSLocatorPickupOnDestroyPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(GPSLocator __instance)
+    {
+        if (__instance.gameObject.name != "GPSLocatorPickup")
+            return;
+
+        Vector3 destroyedPos = __instance.Position();
+        string bestKey = null;
+        float bestDist = float.MaxValue;
+        float maxDist = 50.0f; // Adjust as needed
+
+        foreach (var kvp in BlankGPS.Markers)
+        {
+            string key = kvp.Key;
+            if (!key.StartsWith("GPSLocatorPickup_"))
+                continue;
+
+            // Extract the Vector3 from the key string.
+            // Assumes format "GPSLocatorPickup_(x, y, z)" matching your registration.
+            int idx = key.IndexOf('_');
+            if (idx < 0 || idx + 1 >= key.Length)
+                continue;
+            string vecString = key.Substring(idx + 1); // e.g., "(x.xx, y.yy, z.zz)"
+            Vector3 keyPos;
+            try
+            {
+                keyPos = ParseVector3(vecString);
+            }
+            catch
+            {
+                continue;
+            }
+
+            float dist = Vector3.Distance(destroyedPos, keyPos);
+            if (dist < bestDist && dist <= maxDist)
+            {
+                bestDist = dist;
+                bestKey = key;
+            }
+        }
+
+        if (bestKey != null)
+        {
+            BlankGPS.Markers.Remove(bestKey);
+            RLog.Debug($"[BlankGPS] Removed marker dictionary entry for destroyed pickup (closest match, dist={bestDist:F2}): {bestKey}");
+        }
+        else
+        {
+            RLog.Debug($"[BlankGPS] No marker entry found for destroyed pickup near: {destroyedPos}");
+        }
+    }
+
+    // Example simple parser—adjust if your format differs (remove/replace whitespace as needed).
+    private static Vector3 ParseVector3(string s)
+    {
+        // Remove parentheses
+        s = s.Trim('(', ')');
+        var parts = s.Split(',');
+        if (parts.Length != 3)
+            throw new FormatException("Invalid Vector3 format");
+        float x = float.Parse(parts[0]);
+        float y = float.Parse(parts[1]);
+        float z = float.Parse(parts[2]);
+        return new Vector3(x, y, z);
     }
 }
