@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using RedLoader;
+using RedLoader.Unity.IL2CPP.Utils;
 using Sons.Gameplay.GPS;
 using SonsSdk;
 using SUI;
@@ -465,7 +466,7 @@ public class BlankGPS : SonsMod
     }
 
     // Updates all GPS locators' proximity beep state and beep radius based on current config.
-    public static void UpdateIconPulseState()
+    public static void UpdateIconPulseStates()
     {
         CleanMarkerDictionary();
 
@@ -481,6 +482,42 @@ public class BlankGPS : SonsMod
                 locator._pulseIcon = !Config.DisableIconPulse.Value;
                 locator.ForceRefresh(); // If available, ensures state applies visually
             }
+        }
+    }
+
+    public static void UpdateTagBeepStates()
+    {
+        int updated = 0;
+
+        foreach (var locator in GameObject.FindObjectsOfType<GPSLocator>())
+        {
+            if (locator == null || locator.gameObject == null)
+                continue;
+
+            if (locator.gameObject.name != "GPSLocatorHeld")
+                continue;
+
+            if (Config.DisableTagBeep.Value)
+            {
+                locator._shouldBeepWhenInRange = false;
+                RLog.Debug("[BlankGPS] UpdateTagBeepStates -> GPSLocatorHeld beep DISABLED via config");
+            }
+            else
+            {
+                locator._shouldBeepWhenInRange = true;
+                RLog.Debug("[BlankGPS] UpdateTagBeepStates -> GPSLocatorHeld beep ENABLED via config");
+            }
+
+            updated++;
+        }
+
+        if (updated > 0)
+        {
+            RLog.Msg($"[BlankGPS] Updated {updated} GPSLocatorHeld instance(s) via UpdateTagBeepStates()");
+        }
+        else
+        {
+            RLog.Msg("[BlankGPS] No active GPSLocatorHeld found during UpdateTagBeepStates()");
         }
     }
 
@@ -661,16 +698,19 @@ public class BlankGPS : SonsMod
         //RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         //RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
 
-        // Step 17.1: Update all proximity beep states according to current config
-        UpdateProximityBeepStates();
-
-        // Step 17.2 Update all icon pulse states according to current config
-        UpdateIconPulseState();
-
-        // Apply marker states based on config
+        // Step 17.1 Apply marker states based on config
         UpdateMarkerStatesForType("Cave", Config.ManageCaves.Value);
         UpdateMarkerStatesForType("GPSLocatorPickup", Config.ManageTeamB.Value);
         UpdateMarkerStatesForType("Bunker", Config.ManageBunkers.Value);
+
+        // Step 17.2: Update all proximity beep states according to current config
+        UpdateProximityBeepStates();
+
+        // Step 17.3 Update all icon pulse states according to current config
+        UpdateIconPulseStates();
+
+        // Step 17.4 Update all disable tag states according to current config
+        UpdateTagBeepStates();
     }
 }
 
@@ -787,6 +827,79 @@ public class GPSLocatorAwakePatch
             }
         }
         //RLog.Debug($"Markers after Postfix: {string.Join(", ", BlankGPS.Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+    }
+}
+
+[HarmonyPatch(typeof(GPSLocator), "Start")]
+public class GPSLocatorStartPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix(GPSLocator __instance)
+    {
+        if (__instance.gameObject.name == "GPSLocatorHeld")
+        {
+            __instance.StartCoroutine(ApplyBeepConfigAfterUnityInit(__instance));
+        }
+    }
+
+    private static System.Collections.IEnumerator ApplyBeepConfigAfterUnityInit(GPSLocator locator)
+    {
+        float maxWait = 3f;
+        float elapsed = 0f;
+        float interval = 0.1f;
+
+        RLog.Debug("[BlankGPS] Waiting for GPSLocatorHeld to be initialized by Unity...");
+
+        // Step 1: Wait until Unity sets _shouldBeepWhenInRange = true
+        while (elapsed < maxWait)
+        {
+            if (locator == null || locator.gameObject == null)
+                yield break;
+
+            if (locator._shouldBeepWhenInRange)
+            {
+                RLog.Debug("[BlankGPS] GPSLocatorHeld initialized (beep = true). Applying config control...");
+                break;
+            }
+
+            yield return new WaitForSeconds(interval);
+            elapsed += interval;
+        }
+
+        if (locator == null || locator.gameObject == null)
+            yield break;
+
+        // Step 2: Apply config setting only after Unity has stepped in
+        bool desired = !Config.DisableTagBeep.Value;
+        if (locator._shouldBeepWhenInRange == desired)
+        {
+            RLog.Debug($"[BlankGPS] Beep state already matches config ({desired}) — no enforcement needed.");
+            yield break;
+        }
+
+        // Step 3: Enforce config value for up to X seconds until it sticks
+        elapsed = 0f;
+        RLog.Debug($"[BlankGPS] Enforcing beep value: {desired.ToString().ToUpper()} for up to {maxWait}s");
+
+        while (elapsed < maxWait)
+        {
+            if (locator == null || locator.gameObject == null)
+                yield break;
+
+            locator._shouldBeepWhenInRange = desired;
+
+            // Exit early if it sticks immediately
+            yield return new WaitForSeconds(interval);
+            if (locator._shouldBeepWhenInRange == desired)
+            {
+                RLog.Debug("[BlankGPS] Beep state enforced successfully.");
+                yield break;
+            }
+
+            elapsed += interval;
+        }
+
+        RLog.Debug("[BlankGPS] Timeout – Final beep state: " + locator._shouldBeepWhenInRange.ToString().ToUpper());
     }
 }
 

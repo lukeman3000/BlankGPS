@@ -34,6 +34,8 @@ public static class Config
     // Toggle for icon pulse
     public static ConfigEntry<bool> DisableIconPulse { get; private set; }
 
+    public static ConfigEntry<bool> DisableTagBeep { get; private set; }
+
     // Auto populated after calling SettingsRegistry.CreateSettings...
     private static SettingsRegistry.SettingsEntry _settingsEntry;
 
@@ -97,6 +99,12 @@ public static class Config
             "Disable Bunker Icon Pulse",
             "Disable icon pulse for bunker markers.");
 
+        DisableTagBeep = Category.CreateEntry(
+            "disable_tag_beep",
+            true,
+            "Disable GPS tag beep",
+            "Disables beeping for Team B GPS tags after they've been picked up.");
+
         // Initialize previous values to match defaults
         _lastManageCaves = ManageCaves.Value;
         _lastManageTeamB = ManageTeamB.Value;
@@ -140,6 +148,9 @@ public static class Config
         BlankGPS.UpdateProximityBeepStates();
 
         // Update all icon pulse states to reflect the new config
-        BlankGPS.UpdateIconPulseState();
+        BlankGPS.UpdateIconPulseStates();
+
+        // Update all disable tag beep states to reflect the new config
+        BlankGPS.UpdateTagBeepStates();
     }
 }
