@@ -172,7 +172,7 @@ public class ProximityTrigger : MonoBehaviour
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
 
-            // Step 2.5: Enable the marker if proximity is enabled and the marker type is managed
+            // Step 2.5: Discover and enable the marker if proximity is enabled and the marker type is managed
             if (_gpsLocator != null && !string.IsNullOrEmpty(_markerKey) && Config.ProximityEnabled.Value)
             {
                 if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
@@ -187,10 +187,14 @@ public class ProximityTrigger : MonoBehaviour
                         }
                         BlankGPS.MarkerEnable(_gpsLocator, state.OriginalIconScale);
                         state.IsDisabled = false;
-                        RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
+
+                        // Record discovery for current session memory
+                        BlankGPS._originalMarkerStates[_markerKey] = false;
 
                         // Immediately update beep states after discovery
                         BlankGPS.UpdateProximityBeepStates();
+
+                        RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
                     }
                 }
                 else
@@ -358,9 +362,7 @@ public class BlankGPS : SonsMod
                 }
                 else
                 {
-                    // Step 11.5: Save discovery state and re-enable marker
-                    _originalMarkerStates[markerName] = state.IsDisabled;
-                    state.IsDisabled = false;
+                    // Step 11.5: Re-enable marker
                     MarkerEnable(state.Locator, state.OriginalIconScale);
                     //RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {markerName} IsDisabled={_originalMarkerStates[markerName]}, Set IsDisabled={state.IsDisabled}");
                     affectedCount++;
@@ -655,6 +657,7 @@ public class BlankGPS : SonsMod
         int teamBTriggerCount = 0;
         int bunkerTriggerCount = 0;
 
+        _originalMarkerStates.Clear();
         CleanMarkerDictionary();
 
         foreach (var marker in Markers)
