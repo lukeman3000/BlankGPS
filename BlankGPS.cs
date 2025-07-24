@@ -2,6 +2,7 @@
 using RedLoader;
 using RedLoader.Unity.IL2CPP.Utils;
 using Sons.Gameplay.GPS;
+using Sons.Inventory;
 using SonsSdk;
 using SUI;
 using System.Collections.Generic;
@@ -974,5 +975,31 @@ public class GPSLocatorPickupOnDestroyPatch
         float y = float.Parse(parts[1]);
         float z = float.Parse(parts[2]);
         return new Vector3(x, y, z);
+    }
+}
+
+// Patch for the private static GotItemText method
+[HarmonyPatch(typeof(HudGui), "GotItemText")]
+class Patch_GotItemText_Debug
+{
+    static void Prefix(ItemInstance itemInstance, int amount)
+    {
+        RLog.Debug($"[DEBUG] GotItemText called with amount = {amount}");
+
+        if (itemInstance != null)
+        {
+            var uiData = itemInstance.Data?.UiData;
+            string itemName = uiData != null ? uiData.GetTitleLocalized() : "null UI Data";
+            RLog.Debug($"[DEBUG] ItemInstance is not null, localized title: {itemName}");
+        }
+        else
+        {
+            RLog.Debug("[DEBUG] ItemInstance is null");
+        }
+    }
+
+    static void Postfix(string __result)
+    {
+        RLog.Debug($"[DEBUG] GotItemText returned string: {__result}");
     }
 }
