@@ -647,6 +647,8 @@ public class BlankGPS : SonsMod
         var saveManager = new BlankGPSSaveManager();
         SonsSaveTools.Register(saveManager);
         RLog.Debug("Registered BlankGPSSaveManager");
+
+        SdkEvents.OnWorldExited.Subscribe(OnWorldExitedCallback);
     }
 
     protected override void OnSdkInitialized()
@@ -726,6 +728,14 @@ public class BlankGPS : SonsMod
 
         // Step 17.4 Update all disable tag states according to current config
         UpdateTagBeepStates();
+    }
+
+    // Marker state cleanup on world exit
+    private void OnWorldExitedCallback()
+    {
+        BlankGPS.CleanMarkerDictionary();
+        BlankGPS._originalMarkerStates.Clear();
+        BlankGPS._loadedMarkerStates.Clear();
     }
 }
 
