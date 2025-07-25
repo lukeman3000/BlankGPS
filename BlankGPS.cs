@@ -56,9 +56,13 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
     {
         RLog.Debug("Loading BlankGPS marker states...");
         RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-       
+
+        BlankGPS.CleanMarkerDictionary();
         BlankGPS._originalMarkerStates.Clear();
-        RLog.Debug("Cleared _originalMarkerStates");
+        BlankGPS._loadedMarkerStates.Clear();
+        BlankGPS.InitializeOriginalMarkerStates();
+
+        RLog.Debug("Cleared CleanMarkerDictionary, _originalMarkerStates, and _loadedMarkerStates");
 
         if (obj == null || obj.MarkerStates == null)
         {
@@ -66,7 +70,6 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
             return;
         }
 
-        BlankGPS._loadedMarkerStates.Clear();
         foreach (var savedState in obj.MarkerStates)
         {
             BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
@@ -195,6 +198,13 @@ public class ProximityTrigger : MonoBehaviour
                         // Immediately update beep states after discovery
                         BlankGPS.UpdateProximityBeepStates();
 
+                        // Destroy the trigger and collider if they exist
+                        if (state.TriggerObject != null)
+                        {
+                            UnityEngine.Object.Destroy(state.TriggerObject);
+                            state.TriggerObject = null;
+                        }
+
                         RLog.Msg($"Enabled marker: {_gpsLocator.gameObject.name}");
                     }
                 }
@@ -292,6 +302,17 @@ public class BlankGPS : SonsMod
             RLog.Debug($"[BlankGPS] Removed stale marker dictionary entry: {key}");
         }
     }
+    public static void InitializeOriginalMarkerStates()
+    {
+        foreach (var marker in Markers)
+        {
+            string markerName = marker.Key;
+            if (IsMarkerTypeManaged(markerName) && !_originalMarkerStates.ContainsKey(markerName))
+            {
+                _originalMarkerStates[markerName] = true; // Mark as undiscovered by default
+            }
+        }
+    }
 
     // Step 11: Updates the state of all markers of a specific type based on the manage setting
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
@@ -345,8 +366,10 @@ public class BlankGPS : SonsMod
                         MarkerEnable(state.Locator, state.OriginalIconScale);
                     }
 
-                    // Step 11.4: Create a trigger and collider for the marker if it doesn't already have one
-                    if (state.TriggerObject == null)
+                    // Step 11.4: If undiscovered, create a trigger and collider for the marker if it doesn't already have one
+                    if (state.TriggerObject == null &&
+                        _originalMarkerStates.ContainsKey(markerName) &&
+                        _originalMarkerStates[markerName])
                     {
                         state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
                         if (state.TriggerObject != null)
@@ -444,7 +467,7 @@ public class BlankGPS : SonsMod
             {
                 // Proximity beep disabled: ensure beeping is off for all markers
                 locator._shouldBeepWhenInRange = false;
-                RLog.Debug($"Marker '{markerName}': Proximity beep OFF globally -> beep disabled");
+                // RLog.Debug($"Marker '{markerName}': Proximity beep OFF globally -> beep disabled");
                 discoveredNoBeep++;
             }
             else
@@ -453,13 +476,13 @@ public class BlankGPS : SonsMod
                 {
                     locator._shouldBeepWhenInRange = false;
                     discoveredNoBeep++;
-                    RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
+                    // RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
                 }
                 else
                 {
                     locator._shouldBeepWhenInRange = true;
                     undiscoveredWithBeep++;
-                    RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
+                    // RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
                 }
             }
             totalMarkers++;
@@ -642,13 +665,6 @@ public class BlankGPS : SonsMod
         SettingsRegistry.CreateSettings(this, null, typeof(Config));
     }
 
-    // Step 15.4: Clear _loadedMarkerStates when a new scene is loaded
-    public override void OnSceneWasLoaded(int buildIndex, string sceneName)
-    {
-        RLog.Debug($"Clearing _loadedMarkerStates on scene load (Scene: {sceneName}, BuildIndex: {buildIndex})...");
-        _loadedMarkerStates.Clear();
-    }
-
     protected override void OnGameStart()
     {
         // This is called once the player spawns in the world and gains control.
@@ -658,8 +674,10 @@ public class BlankGPS : SonsMod
         int teamBTriggerCount = 0;
         int bunkerTriggerCount = 0;
 
-        _originalMarkerStates.Clear();
         CleanMarkerDictionary();
+        _loadedMarkerStates.Clear();
+        _originalMarkerStates.Clear();
+        InitializeOriginalMarkerStates();
 
         foreach (var marker in Markers)
         {
