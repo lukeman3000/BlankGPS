@@ -57,13 +57,6 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         RLog.Debug("Loading BlankGPS marker states...");
         RLog.Debug($"_originalMarkerStates before load: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
 
-        BlankGPS.CleanMarkerDictionary();
-        BlankGPS._originalMarkerStates.Clear();
-        BlankGPS._loadedMarkerStates.Clear();
-        BlankGPS.InitializeOriginalMarkerStates();
-
-        RLog.Debug("Cleared CleanMarkerDictionary, _originalMarkerStates, and _loadedMarkerStates");
-
         if (obj == null || obj.MarkerStates == null)
         {
             RLog.Warning("No marker states loaded from SaveData");
