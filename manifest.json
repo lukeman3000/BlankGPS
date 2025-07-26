@@ -1,10 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/ToniMacaroni/RedLoader/main/MetadataSchema.json",
   "id": "BlankGPS",
-  "author": "You",
+  "author": "lukeman3000",
   "version": "1.0.0",
-  "description": "A mod that does something.",
+  "description": "Disables specific GPS markers, such as cave entrances and certain pickups, to enhance the exploration experience.",
   "gameVersion": "1.0.0",
   "type": "Mod",
-  "url": "..."
+  "url": "https://github.com/lukeman3000/BlankGPS"
 }
