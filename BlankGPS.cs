@@ -34,7 +34,7 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
 
     public SaveData Save()
     {
-        BlankGPS.CleanMarkerDictionary();
+        // BlankGPS.CleanMarkerDictionary();
 
         RLog.Debug("Saving BlankGPS marker states...");
         SaveData saveData = new SaveData();
@@ -323,7 +323,7 @@ public class BlankGPS : SonsMod
                     // Step 11.3: Restore saved state if available, else original or default disabled
                     bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(marker.Key) ? BlankGPS._loadedMarkerStates[marker.Key] : (_originalMarkerStates.ContainsKey(marker.Key) ? _originalMarkerStates[marker.Key] : true);
                     state.IsDisabled = savedIsDisabled;
-                    //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
+                    RLog.Debug($"Toggle {typeIdentifier} ON: Set {marker.Key} IsDisabled={state.IsDisabled}");
 
                     if (state.IsDisabled)
                     {
@@ -358,7 +358,7 @@ public class BlankGPS : SonsMod
                 {
                     // Step 11.5: Re-enable marker
                     MarkerEnable(state.Locator, state.OriginalIconScale);
-                    //RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {markerName} IsDisabled={_originalMarkerStates[markerName]}, Set IsDisabled={state.IsDisabled}");
+                    // RLog.Debug($"Toggle {typeIdentifier} OFF: Saved {marker.Key} IsDisabled={_originalMarkerStates[marker.Key]}, Set IsDisabled={state.IsDisabled}");
                     affectedCount++;
 
                     // Step 11.6: Destroy the trigger and collider if they exist
@@ -413,7 +413,6 @@ public class BlankGPS : SonsMod
 
         foreach (var marker in Markers)
         {
-            string markerName = marker.Key;
             GPSLocatorState state = marker.Value;
 
             // Only affect managed markers
@@ -437,7 +436,7 @@ public class BlankGPS : SonsMod
             {
                 // Proximity beep disabled: ensure beeping is off for all markers
                 locator._shouldBeepWhenInRange = false;
-                // RLog.Debug($"Marker '{markerName}': Proximity beep OFF globally -> beep disabled");
+                // RLog.Debug($"Marker '{marker.Key}': Proximity beep OFF globally -> beep disabled");
                 discoveredNoBeep++;
             }
             else
@@ -446,13 +445,13 @@ public class BlankGPS : SonsMod
                 {
                     locator._shouldBeepWhenInRange = false;
                     discoveredNoBeep++;
-                    // RLog.Debug($"Marker '{markerName}': discovered -> beep disabled");
+                    // RLog.Debug($"Marker '{marker.Key}': discovered -> beep disabled");
                 }
                 else
                 {
                     locator._shouldBeepWhenInRange = true;
                     undiscoveredWithBeep++;
-                    // RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.BeepRadius.Value})");
+                    // RLog.Debug($"Marker '{marker.Key}': undiscovered -> beep enabled (radius {Config.BeepRadius.Value})");
                 }
             }
             totalMarkers++;
