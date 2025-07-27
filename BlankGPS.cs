@@ -416,10 +416,15 @@ public class BlankGPS : SonsMod
         foreach (var marker in Markers)
         {
             GPSLocatorState state = marker.Value;
+            GPSLocator locator = state.Locator;
+            float safeBeepRadius = Mathf.Clamp(Config.BeepRadius.Value, 1.0f, 500.0f);
+            locator._beepMaxRange = safeBeepRadius;
 
-            // Only affect managed markers
             if (!IsMarkerTypeManaged(marker.Key))
             {
+                // All unmanaged markers have beep OFF, regardless of discovery status
+                locator._shouldBeepWhenInRange = false;
+                skipped++;
                 continue;
             }
 
@@ -429,10 +434,6 @@ public class BlankGPS : SonsMod
                 skipped++;
                 continue;
             }
-
-            GPSLocator locator = state.Locator;
-            float safeBeepRadius = Mathf.Clamp(Config.BeepRadius.Value, 1.0f, 500.0f);
-            locator._beepMaxRange = safeBeepRadius;
 
             if (!Config.ProximityBeep.Value)
             {
@@ -663,13 +664,6 @@ public class BlankGPS : SonsMod
 
     protected override void OnGameStart()
     {
-        // This is called once the player spawns in the world and gains control.
-        // Step 16: Add ProximityTrigger to managed markers in the Markers dictionary
-        int disabledCount = 0;
-        int caveTriggerCount = 0;
-        int teamBTriggerCount = 0;
-        int bunkerTriggerCount = 0;
-
         CleanMarkerDictionary();
         _originalMarkerStates.Clear();
         InitializeOriginalMarkerStates();
