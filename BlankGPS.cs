@@ -123,7 +123,7 @@ public class ProximityTrigger : MonoBehaviour
     private bool _hasExited = false;
     private GPSLocator _gpsLocator;
     private int _playerLayer;
-    private string _markerKey = string.Empty; // Cached key for the marker in BlankGPS.Markers, initialized to avoid null
+    public string _markerKey = string.Empty; // Cached key for the marker in BlankGPS.Markers, initialized to avoid null
 
     private void Start()
     {
@@ -138,27 +138,6 @@ public class ProximityTrigger : MonoBehaviour
         // Step 2.2: Set the GameObject to the player's layer to match LocalPlayer
         _playerLayer = LayerMask.NameToLayer("Player");
         gameObject.layer = _playerLayer;
-
-        // Step 2.3: Compute the marker key for this GPSLocator
-        _markerKey = _gpsLocator.gameObject.name;
-        if (_gpsLocator.gameObject.name == "GPSLocatorPickup")
-        {
-            Vector3 position = _gpsLocator.Position();
-            if (position != Vector3.zero)
-            {
-                BlankGPS.CleanMarkerDictionary();
-
-                // Find the matching position in DefaultMarkers to construct the key
-                foreach (var marker in BlankGPS.DefaultMarkers)
-                {
-                    if (marker.gameObjectName == "GPSLocatorPickup" && Vector3.Distance(marker.position, position) < 0.1f)
-                    {
-                        _markerKey = $"GPSLocatorPickup_{marker.position}";
-                        break;
-                    }
-                }
-            }
-        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -271,13 +250,13 @@ public class BlankGPS : SonsMod
     }
 
     // Step 10: Helper method to determine if a marker type is managed based on config settings
-    public static bool IsMarkerTypeManaged(string markerName)
+    public static bool IsMarkerTypeManaged(string markerKey)
     {
-        if (markerName.Contains("Cave") && Config.ManageCaves.Value)
+        if (markerKey.Contains("Cave") && Config.ManageCaves.Value)
             return true;
-        if (markerName.Contains("GPSLocatorPickup") && Config.ManageTeamB.Value)
+        if (markerKey.Contains("GPSLocatorPickup") && Config.ManageTeamB.Value)
             return true;
-        if (markerName.Contains("Bunker") && Config.ManageBunkers.Value)
+        if (markerKey.Contains("Bunker") && Config.ManageBunkers.Value)
             return true;
         return false;
     }
@@ -299,10 +278,9 @@ public class BlankGPS : SonsMod
     {
         foreach (var marker in Markers)
         {
-            string markerName = marker.Key;
-            if (IsMarkerTypeManaged(markerName) && !_originalMarkerStates.ContainsKey(markerName))
+            if (IsMarkerTypeManaged(marker.Key) && !_originalMarkerStates.ContainsKey(marker.Key))
             {
-                _originalMarkerStates[markerName] = true; // Mark as undiscovered by default
+                _originalMarkerStates[marker.Key] = true; // Mark as undiscovered by default
             }
         }
     }
@@ -321,20 +299,19 @@ public class BlankGPS : SonsMod
         int triggerCount = 0;
         foreach (var marker in Markers)
         {
-            string markerName = marker.Key;
             GPSLocatorState state = marker.Value;
 
             // Step 11.2: Determine if the marker matches the type
             bool isMatchingType = false;
-            if (typeIdentifier == "Cave" && markerName.Contains("Cave"))
+            if (typeIdentifier == "Cave" && marker.Key.Contains("Cave"))
             {
                 isMatchingType = true;
             }
-            else if (typeIdentifier == "GPSLocatorPickup" && markerName.Contains("GPSLocatorPickup"))
+            else if (typeIdentifier == "GPSLocatorPickup" && marker.Key.Contains("GPSLocatorPickup"))
             {
                 isMatchingType = true;
             }
-            else if (typeIdentifier == "Bunker" && markerName.Contains("Bunker"))
+            else if (typeIdentifier == "Bunker" && marker.Key.Contains("Bunker"))
             {
                 isMatchingType = true;
             }
@@ -344,7 +321,7 @@ public class BlankGPS : SonsMod
                 if (shouldManage)
                 {
                     // Step 11.3: Restore saved state if available, else original or default disabled
-                    bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(markerName) ? BlankGPS._loadedMarkerStates[markerName] : (_originalMarkerStates.ContainsKey(markerName) ? _originalMarkerStates[markerName] : true);
+                    bool savedIsDisabled = BlankGPS._loadedMarkerStates.ContainsKey(marker.Key) ? BlankGPS._loadedMarkerStates[marker.Key] : (_originalMarkerStates.ContainsKey(marker.Key) ? _originalMarkerStates[marker.Key] : true);
                     state.IsDisabled = savedIsDisabled;
                     //RLog.Debug($"Toggle {typeIdentifier} ON: Set {markerName} IsDisabled={state.IsDisabled}");
 
@@ -361,10 +338,10 @@ public class BlankGPS : SonsMod
 
                     // Step 11.4: If undiscovered, create a trigger and collider for the marker if it doesn't already have one
                     if (state.TriggerObject == null &&
-                        _originalMarkerStates.ContainsKey(markerName) &&
-                        _originalMarkerStates[markerName])
+                        _originalMarkerStates.ContainsKey(marker.Key) &&
+                        _originalMarkerStates[marker.Key])
                     {
-                        state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
+                        state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
                         if (state.TriggerObject != null)
                         {
                             triggerCount++;
@@ -372,7 +349,7 @@ public class BlankGPS : SonsMod
                     }
 
                     // 11.5 Always enable GPSLocator for bunkers when managed
-                    if (markerName.Contains("Bunker"))
+                    if (marker.Key.Contains("Bunker"))
                     {
                         state.Locator.Enable(true);
                     }
@@ -392,7 +369,7 @@ public class BlankGPS : SonsMod
                     }
 
                     // 11.7 Always disable GPSLocator for bunkers when unmanaged
-                    if (markerName.Contains("Bunker"))
+                    if (marker.Key.Contains("Bunker"))
                     {
                         state.Locator.Enable(false);
                     }
@@ -440,14 +417,14 @@ public class BlankGPS : SonsMod
             GPSLocatorState state = marker.Value;
 
             // Only affect managed markers
-            if (!IsMarkerTypeManaged(markerName))
+            if (!IsMarkerTypeManaged(marker.Key))
             {
                 continue;
             }
 
             if (state == null || state.Locator == null)
             {
-                RLog.Debug($"Skipped marker '{markerName}' (state or locator missing)");
+                RLog.Debug($"Skipped marker '{marker.Key}' (state or locator missing)");
                 skipped++;
                 continue;
             }
@@ -491,12 +468,11 @@ public class BlankGPS : SonsMod
 
         foreach (var marker in BlankGPS.Markers)
         {
-            string markerName = marker.Key;
             GPSLocator locator = marker.Value.Locator;
             if (locator == null) continue;
 
             // Only affect bunker markers
-            if (markerName.Contains("Bunker"))
+            if (marker.Key.Contains("Bunker"))
             {
                 locator._pulseIcon = !Config.DisableIconPulse.Value;
                 locator.ForceRefresh(); // If available, ensures state applies visually
@@ -541,7 +517,7 @@ public class BlankGPS : SonsMod
     }
 
     // Step 12: Creates a proximity trigger for a GPSLocator
-    public static GameObject CreateProximityTrigger(GameObject gpsObject)
+    public static GameObject CreateProximityTrigger(GameObject gpsObject, string markerKey)
     {
         // Step 12.1: Create a child GameObject for the proximity trigger
         GameObject triggerObject = new GameObject($"ProximityTrigger_{gpsObject.name}");
@@ -570,7 +546,7 @@ public class BlankGPS : SonsMod
             UnityEngine.Object.Destroy(triggerObject);
             return null;
         }
-
+        trigger._markerKey = markerKey;
         return triggerObject;
     }
 
@@ -593,7 +569,7 @@ public class BlankGPS : SonsMod
             // Only recreate trigger if marker type is managed and ProximityEnabled
             if (IsMarkerTypeManaged(marker.Key) && Config.ProximityEnabled.Value)
             {
-                state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject);
+                state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
             }
         }
     }
@@ -676,22 +652,21 @@ public class BlankGPS : SonsMod
 
         foreach (var marker in Markers)
         {
-            string markerName = marker.Key;
             GPSLocatorState state = marker.Value;
 
             // Check if the marker type is managed based on config settings
-            bool isTypeManaged = IsMarkerTypeManaged(markerName);
+            bool isTypeManaged = IsMarkerTypeManaged(marker.Key);
             if (isTypeManaged)
             {
-                GameObject triggerObject = CreateProximityTrigger(state.Locator.gameObject);
+                GameObject triggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
                 if (triggerObject != null)
                 {
                     state.TriggerObject = triggerObject;
-                    if (markerName.Contains("Cave"))
+                    if (marker.Key.Contains("Cave"))
                         caveTriggerCount++;
-                    else if (markerName.Contains("GPSLocatorPickup"))
+                    else if (marker.Key.Contains("GPSLocatorPickup"))
                         teamBTriggerCount++;
-                    else if (markerName.Contains("Bunker"))
+                    else if (marker.Key.Contains("Bunker"))
                         bunkerTriggerCount++;
                 }
             }
