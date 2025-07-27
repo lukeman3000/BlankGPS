@@ -494,7 +494,7 @@ public class BlankGPS : SonsMod
             if (locator.gameObject.name != "GPSLocatorHeld")
                 continue;
 
-            if (Config.DisableTagBeep.Value)
+            if (Config.DisableTakenLocatorBeep.Value)
             {
                 locator._shouldBeepWhenInRange = false;
                 RLog.Debug("[BlankGPS] UpdateTagBeepStates -> GPSLocatorHeld beep DISABLED via config");
@@ -849,7 +849,7 @@ public class GPSLocatorStartPatch
             yield break;
 
         // Step 2: Apply config setting only after Unity has stepped in
-        bool desired = !Config.DisableTagBeep.Value;
+        bool desired = !Config.DisableTakenLocatorBeep.Value;
         if (locator._shouldBeepWhenInRange == desired)
         {
             RLog.Debug($"[BlankGPS] Beep state already matches config ({desired}) — no enforcement needed.");
