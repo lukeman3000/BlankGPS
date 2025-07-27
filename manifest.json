@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/ToniMacaroni/RedLoader/main/MetadataSchema.json",
   "id": "BlankGPS",
   "author": "Luke",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Disables specific GPS markers to enhance the exploration experience.",
   "gameVersion": "1.0.0",
   "type": "Mod",
