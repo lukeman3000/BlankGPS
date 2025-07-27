@@ -8,7 +8,7 @@ public static class Config
     public static ConfigCategory Category { get; private set; }
 
     // Toggle for proximity-based marker enabling
-    public static ConfigEntry<bool> ProximityEnabled { get; private set; }
+    public static ConfigEntry<bool> ProximityDiscovery { get; private set; }
 
     // Proximity radius in units
     public static ConfigEntry<float> ProximityRadius { get; private set; }
@@ -49,10 +49,10 @@ public static class Config
         Category = ConfigSystem.CreateFileCategory("BlankGPS", "BlankGPS", "BlankGPS.cfg");
 
         // Initialize settings with default values and descriptions
-        ProximityEnabled = Category.CreateEntry(
-            "proximity_enabled",
+        ProximityDiscovery = Category.CreateEntry(
+            "proximity_discovery",
             true,
-            "Proximity Enabled",
+            "Proximity Discovery",
             "Enable proximity-based marker enabling (markers are hidden until approached).");
 
         ProximityRadius = Category.CreateEntry(

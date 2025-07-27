@@ -148,8 +148,8 @@ public class ProximityTrigger : MonoBehaviour
             _hasTriggered = true;
             _hasExited = false; // Reset the exit flag when entering
 
-            // Step 2.5: Discover and enable the marker if proximity is enabled and the marker type is managed
-            if (_gpsLocator != null && !string.IsNullOrEmpty(_markerKey) && Config.ProximityEnabled.Value)
+            // Step 2.5: Discover and enable the marker if ProximityDiscovery is enabled and the marker type is managed
+            if (_gpsLocator != null && !string.IsNullOrEmpty(_markerKey) && Config.ProximityDiscovery.Value)
             {
                 if (BlankGPS.Markers.TryGetValue(_markerKey, out GPSLocatorState state))
                 {
@@ -566,8 +566,8 @@ public class BlankGPS : SonsMod
                 UnityEngine.Object.Destroy(state.TriggerObject);
                 state.TriggerObject = null;
             }
-            // Only recreate trigger if marker type is managed and ProximityEnabled
-            if (IsMarkerTypeManaged(marker.Key) && Config.ProximityEnabled.Value)
+            // Only recreate trigger if marker type is managed and ProximityDiscovery is enabled
+            if (IsMarkerTypeManaged(marker.Key) && Config.ProximityDiscovery.Value)
             {
                 state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
             }
