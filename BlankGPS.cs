@@ -671,7 +671,6 @@ public class BlankGPS : SonsMod
         int bunkerTriggerCount = 0;
 
         CleanMarkerDictionary();
-        _loadedMarkerStates.Clear();
         _originalMarkerStates.Clear();
         InitializeOriginalMarkerStates();
         RecreateAllProximityTriggers();
