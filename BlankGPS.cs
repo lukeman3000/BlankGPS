@@ -764,7 +764,7 @@ public class GPSLocatorAwakePatch
                 }
 
                 // Compare the fetched position with the stored position using a small distance threshold
-                matches = Vector3.Distance(positionValue, matchingMarker.position) < 0.1f;
+                matches = Vector3.Distance(positionValue, matchingMarker.position) < 50f;
             }
 
             if (matches)
