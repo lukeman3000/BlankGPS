@@ -66,7 +66,8 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
         foreach (var savedState in obj.MarkerStates)
         {
             BlankGPS._loadedMarkerStates[savedState.Key] = savedState.Value;
-            //RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+            RLog.Debug($"Loaded state for {savedState.Key}: IsDisabled={savedState.Value}");
+
             // Apply saved state to Markers
             if (BlankGPS.Markers.TryGetValue(savedState.Key, out GPSLocatorState state))
             {
@@ -90,7 +91,7 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
                     BlankGPS.MarkerEnable(state.Locator, state.OriginalIconScale);
                 }
 
-                //RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
+                RLog.Debug($"Applied saved state for {savedState.Key}: IsDisabled={state.IsDisabled}");
             }
         }
         RLog.Debug($"Loaded {obj.MarkerStates.Count} marker states");
@@ -557,6 +558,10 @@ public class BlankGPS : SonsMod
     {
         CleanMarkerDictionary();
 
+        int caveTriggerCount = 0;
+        int teamBTriggerCount = 0;
+        int bunkerTriggerCount = 0;
+
         foreach (var marker in Markers)
         {
             var state = marker.Value;
@@ -566,12 +571,32 @@ public class BlankGPS : SonsMod
                 UnityEngine.Object.Destroy(state.TriggerObject);
                 state.TriggerObject = null;
             }
-            // Only recreate trigger if marker type is managed and ProximityDiscovery is enabled
-            if (IsMarkerTypeManaged(marker.Key) && Config.ProximityDiscovery.Value)
+            // Only recreate trigger if marker type is managed, ProximityDiscovery is enabled, AND marker is undiscovered
+            if (
+                IsMarkerTypeManaged(marker.Key)
+                && Config.ProximityDiscovery.Value
+                && _originalMarkerStates.ContainsKey(marker.Key)
+                && _originalMarkerStates[marker.Key] // only undiscovered
+            )
             {
                 state.TriggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
+
+                // === Trigger counters for different marker types ===
+                if (marker.Key.Contains("Cave"))
+                    caveTriggerCount++;
+                else if (marker.Key.Contains("GPSLocatorPickup"))
+                    teamBTriggerCount++;
+                else if (marker.Key.Contains("Bunker"))
+                    bunkerTriggerCount++;
             }
         }
+
+        // Optional: log the results
+        RLog.Msg($"Added {caveTriggerCount} ProximityTriggers with SphereColliders for cave markers");
+        RLog.Msg($"Added {teamBTriggerCount} ProximityTriggers with SphereColliders for Team B markers");
+        RLog.Msg($"Added {bunkerTriggerCount} ProximityTriggers with SphereColliders for bunker markers");
+        //RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        //RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
     }
 
     public BlankGPS()
@@ -649,46 +674,7 @@ public class BlankGPS : SonsMod
         _loadedMarkerStates.Clear();
         _originalMarkerStates.Clear();
         InitializeOriginalMarkerStates();
-
-        foreach (var marker in Markers)
-        {
-            GPSLocatorState state = marker.Value;
-
-            // Check if the marker type is managed based on config settings
-            bool isTypeManaged = IsMarkerTypeManaged(marker.Key);
-            if (isTypeManaged)
-            {
-                GameObject triggerObject = CreateProximityTrigger(state.Locator.gameObject, marker.Key);
-                if (triggerObject != null)
-                {
-                    state.TriggerObject = triggerObject;
-                    if (marker.Key.Contains("Cave"))
-                        caveTriggerCount++;
-                    else if (marker.Key.Contains("GPSLocatorPickup"))
-                        teamBTriggerCount++;
-                    else if (marker.Key.Contains("Bunker"))
-                        bunkerTriggerCount++;
-                }
-            }
-
-            // Count the number of markers that were disabled at start
-            if (state.IsDisabled)
-            {
-                disabledCount++;
-            }
-        }
-
-        // Step 17: Log the summary of added triggers and processed markers
-        if (caveTriggerCount > 0)
-            RLog.Msg($"Added {caveTriggerCount} ProximityTriggers with SphereColliders for cave markers");
-        if (teamBTriggerCount > 0)
-            RLog.Msg($"Added {teamBTriggerCount} ProximityTriggers with SphereColliders for Team B markers");
-        if (bunkerTriggerCount > 0)
-            RLog.Msg($"Added {bunkerTriggerCount} ProximityTriggers with SphereColliders for bunker markers");
-        RLog.Msg($"Disabled {disabledCount} markers at game start");
-        RLog.Msg($"Processed {Markers.Count} out of {DefaultMarkers.Count} targeted GPSLocators");
-        //RLog.Debug($"_originalMarkerStates on game start: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
-        //RLog.Debug($"Markers on game start: {string.Join(", ", Markers.Where(kvp => kvp.Key.Contains("Cave")).Select(kvp => $"{kvp.Key}={kvp.Value.IsDisabled}"))}");
+        RecreateAllProximityTriggers();
 
         // Step 17.1 Apply marker states based on config
         UpdateMarkerStatesForType("Cave", Config.ManageCaves.Value);
