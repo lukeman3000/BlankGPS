@@ -34,7 +34,7 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
 
     public SaveData Save()
     {
-        // BlankGPS.CleanMarkerDictionary();
+        BlankGPS.CleanMarkerDictionary();
 
         RLog.Debug("Saving BlankGPS marker states...");
         SaveData saveData = new SaveData();
@@ -45,10 +45,10 @@ public class BlankGPSSaveManager : ICustomSaveable<SaveData>
                 ? marker.Value.IsDisabled
                 : (BlankGPS._originalMarkerStates.ContainsKey(marker.Key) ? BlankGPS._originalMarkerStates[marker.Key] : true);
             saveData.MarkerStates[marker.Key] = isDisabled;
-            //RLog.Debug($"Saved state for {marker.Key}: IsDisabled={isDisabled}");
+            RLog.Debug($"Saved state for {marker.Key}: IsDisabled={isDisabled}");
         }
         RLog.Debug($"Saved {saveData.MarkerStates.Count} marker states");
-        //RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
+        RLog.Debug($"_originalMarkerStates on save: {string.Join(", ", BlankGPS._originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
         return saveData;
     }
 
@@ -278,7 +278,7 @@ public class BlankGPS : SonsMod
     {
         foreach (var marker in Markers)
         {
-            if (IsMarkerTypeManaged(marker.Key) && !_originalMarkerStates.ContainsKey(marker.Key))
+            if (!_originalMarkerStates.ContainsKey(marker.Key))
             {
                 _originalMarkerStates[marker.Key] = true; // Mark as undiscovered by default
             }
@@ -289,6 +289,7 @@ public class BlankGPS : SonsMod
     public static void UpdateMarkerStatesForType(string typeIdentifier, bool shouldManage)
     {
         CleanMarkerDictionary();
+        InitializeOriginalMarkerStates();
 
         RLog.Debug($"UpdateMarkerStatesForType({typeIdentifier}, shouldManage={shouldManage}) called");
         //RLog.Debug($"_originalMarkerStates before update: {string.Join(", ", _originalMarkerStates.Select(kvp => $"{kvp.Key}={kvp.Value}"))}");
@@ -345,7 +346,7 @@ public class BlankGPS : SonsMod
                         if (state.TriggerObject != null)
                         {
                             triggerCount++;
-                        }
+                    }
                     }
 
                     // 11.5 Always enable GPSLocator for bunkers when managed
