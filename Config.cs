@@ -11,7 +11,7 @@ public static class Config
     public static ConfigEntry<bool> ProximityDiscovery { get; private set; }
 
     // Proximity radius in units
-    public static ConfigEntry<float> ProximityRadius { get; private set; }
+    public static ConfigEntry<float> DiscoveryRadius { get; private set; }
 
     // Last proximity radius, used to detect changes when the user adjusts the slider (for live trigger updates)
     private static float _lastProximityRadius;
@@ -20,7 +20,7 @@ public static class Config
     public static ConfigEntry<bool> ProximityBeep { get; private set; }
 
     // Proximity beep radius in units
-    public static ConfigEntry<float> ProximityBeepRadius { get; private set; }
+    public static ConfigEntry<float> BeepRadius { get; private set; }
 
     // Toggle for managing cave entrance markers
     public static ConfigEntry<bool> ManageCaves { get; private set; }
@@ -55,12 +55,12 @@ public static class Config
             "Proximity Discovery",
             "Enable proximity-based marker enabling (markers are hidden until approached).");
 
-        ProximityRadius = Category.CreateEntry(
-            "proximity_radius",
+        DiscoveryRadius = Category.CreateEntry(
+            "discovery_radius",
             10.0f,
-            "Proximity Radius",
+            "Discovery Radius",
             "Distance (in units) at which markers enable when approached.");
-        ProximityRadius.SetRange(1.0f, 10.0f);
+        DiscoveryRadius.SetRange(1.0f, 10.0f);
 
         ProximityBeep = Category.CreateEntry(
             "proximity_beep",
@@ -68,12 +68,12 @@ public static class Config
             "Proximity Beep",
             "Enable proximity-based beep for undiscovered markers.");
 
-        ProximityBeepRadius = Category.CreateEntry(
-            "proximity_beep_radius",
+        BeepRadius = Category.CreateEntry(
+            "beep_radius",
             250.0f,
-            "Proximity Beep Radius",
+            "Beep Radius",
             "Distance (in units) at which the proximity beep can be heard from any given undiscovered marker.");
-        ProximityBeepRadius.SetRange(1.0f, 250.0f);
+        BeepRadius.SetRange(1.0f, 250.0f);
 
         ManageCaves = Category.CreateEntry(
             "manage_caves",

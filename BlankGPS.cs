@@ -430,8 +430,8 @@ public class BlankGPS : SonsMod
             }
 
             GPSLocator locator = state.Locator;
-            float safeProximityBeepRadius = Mathf.Clamp(Config.ProximityBeepRadius.Value, 1.0f, 500.0f);
-            locator._beepMaxRange = safeProximityBeepRadius;
+            float safeBeepRadius = Mathf.Clamp(Config.BeepRadius.Value, 1.0f, 500.0f);
+            locator._beepMaxRange = safeBeepRadius;
 
             if (!Config.ProximityBeep.Value)
             {
@@ -452,7 +452,7 @@ public class BlankGPS : SonsMod
                 {
                     locator._shouldBeepWhenInRange = true;
                     undiscoveredWithBeep++;
-                    // RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.ProximityBeepRadius.Value})");
+                    // RLog.Debug($"Marker '{markerName}': undiscovered -> beep enabled (radius {Config.BeepRadius.Value})");
                 }
             }
             totalMarkers++;
@@ -534,8 +534,8 @@ public class BlankGPS : SonsMod
         }
 
         // Step 12.4: Configure the SphereCollider
-        float safeProximityRadius = Mathf.Clamp(Config.ProximityRadius.Value, 1.0f, 20.0f);
-        collider.radius = safeProximityRadius;
+        float safeDiscoveryRadius = Mathf.Clamp(Config.DiscoveryRadius.Value, 1.0f, 20.0f);
+        collider.radius = safeDiscoveryRadius;
         collider.isTrigger = true;
 
         // Step 12.5: Attach the ProximityTrigger component to triggerObject
@@ -551,7 +551,7 @@ public class BlankGPS : SonsMod
     }
 
     // Step 12.6: Recreate all proximity triggers for managed markers
-    // Destroys existing proximity triggers and creates new ones with the current ProximityRadius value.
+    // Destroys existing proximity triggers and creates new ones with the current DiscoveryRadius value.
     // Called when the proximity radius slider is changed, to ensure triggers use updated settings.
     public static void RecreateAllProximityTriggers()
     {
